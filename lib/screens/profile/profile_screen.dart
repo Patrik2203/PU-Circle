@@ -24,7 +24,8 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProviderStateMixin {
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
   late TabController _tabController;
@@ -57,7 +58,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         // Check if current user is following this profile
         if (!widget.isCurrentUser && _authService.currentUser != null) {
           setState(() {
-            _isFollowing = user.followers.contains(_authService.currentUser!.uid);
+            _isFollowing = user.followers.contains(
+              _authService.currentUser!.uid,
+            );
           });
         }
       }
@@ -105,9 +108,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         }
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     }
   }
 
@@ -116,52 +119,55 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Report User'),
-        content: TextField(
-          controller: _reasonController,
-          decoration: const InputDecoration(
-            hintText: 'Reason for reporting',
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              if (_reasonController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please provide a reason')),
-                );
-                return;
-              }
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Report User'),
+            content: TextField(
+              controller: _reasonController,
+              decoration: const InputDecoration(
+                hintText: 'Reason for reporting',
+              ),
+              maxLines: 3,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  if (_reasonController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please provide a reason')),
+                    );
+                    return;
+                  }
 
-              try {
-                await _authService.reportUser(
-                  _authService.currentUser!.uid,
-                  widget.userId,
-                  _reasonController.text.trim(),
-                );
+                  try {
+                    await _authService.reportUser(
+                      _authService.currentUser!.uid,
+                      widget.userId,
+                      _reasonController.text.trim(),
+                    );
 
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('User reported successfully')),
-                  );
-                }
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: ${e.toString()}')),
-                );
-              }
-            },
-            child: const Text('Report'),
+                    if (mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('User reported successfully'),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: ${e.toString()}')),
+                    );
+                  }
+                },
+                child: const Text('Report'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -229,12 +235,14 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                               child: CircleAvatar(
                                 radius: 50,
                                 backgroundColor: Colors.grey.shade200,
-                                backgroundImage: user.profileImageUrl.isNotEmpty
-                                    ? NetworkImage(user.profileImageUrl)
-                                    : null,
-                                child: user.profileImageUrl.isEmpty
-                                    ? const Icon(Icons.person, size: 50)
-                                    : null,
+                                backgroundImage:
+                                    user.profileImageUrl.isNotEmpty
+                                        ? NetworkImage(user.profileImageUrl)
+                                        : null,
+                                child:
+                                    user.profileImageUrl.isEmpty
+                                        ? const Icon(Icons.person, size: 50)
+                                        : null,
                               ),
                             ),
                             const SizedBox(width: 24),
@@ -242,37 +250,48 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                             // Stats
                             Expanded(
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
                                 children: [
                                   // Posts count
                                   _buildStatColumn('Posts', _postsCount),
 
                                   // Followers count
                                   GestureDetector(
-                                    onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => FollowersScreen(
-                                          userId: user.uid,
-                                          isFollowers: true,
+                                    onTap:
+                                        () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (context) => FollowersScreen(
+                                                  userId: user.uid,
+                                                  isFollowers: true,
+                                                ),
+                                          ),
                                         ),
-                                      ),
+                                    child: _buildStatColumn(
+                                      'Followers',
+                                      _followersCount,
                                     ),
-                                    child: _buildStatColumn('Followers', _followersCount),
                                   ),
 
                                   // Following count
                                   GestureDetector(
-                                    onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => FollowersScreen(
-                                          userId: user.uid,
-                                          isFollowers: false,
+                                    onTap:
+                                        () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (context) => FollowersScreen(
+                                                  userId: user.uid,
+                                                  isFollowers: false,
+                                                ),
+                                          ),
                                         ),
-                                      ),
+                                    child: _buildStatColumn(
+                                      'Following',
+                                      _followingCount,
                                     ),
-                                    child: _buildStatColumn('Following', _followingCount),
                                   ),
                                 ],
                               ),
@@ -312,7 +331,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                             ),
                             const SizedBox(width: 12),
                             Icon(
-                              user.isSingle ? Icons.favorite_border : Icons.favorite,
+                              user.isSingle
+                                  ? Icons.favorite_border
+                                  : Icons.favorite,
                               color: user.isSingle ? Colors.grey : Colors.red,
                               size: 20,
                             ),
@@ -332,27 +353,33 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                         // Edit profile / follow button
                         SizedBox(
                           width: double.infinity,
-                          child: widget.isCurrentUser
-                              ? OutlinedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EditProfileScreen(user: user),
-                                ),
-                              ).then((_) => _loadUserData());
-                            },
-                            child: const Text('Edit Profile'),
-                          )
-                              : ElevatedButton(
-                            onPressed: _handleFollow,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _isFollowing
-                                  ? Colors.grey
-                                  : Theme.of(context).primaryColor,
-                            ),
-                            child: Text(_isFollowing ? 'Unfollow' : 'Follow'),
-                          ),
+                          child:
+                              widget.isCurrentUser
+                                  ? OutlinedButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) =>
+                                                  EditProfileScreen(user: user),
+                                        ),
+                                      ).then((_) => _loadUserData());
+                                    },
+                                    child: const Text('Edit Profile'),
+                                  )
+                                  : ElevatedButton(
+                                    onPressed: _handleFollow,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          _isFollowing
+                                              ? Colors.grey
+                                              : Theme.of(context).primaryColor,
+                                    ),
+                                    child: Text(
+                                      _isFollowing ? 'Unfollow' : 'Follow',
+                                    ),
+                                  ),
                         ),
                       ],
                     ),
@@ -397,11 +424,12 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     }
 
                     return GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 2,
-                        mainAxisSpacing: 2,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 2,
+                            mainAxisSpacing: 2,
+                          ),
                       itemCount: posts.length,
                       itemBuilder: (context, index) {
                         final post = posts[index];
@@ -416,16 +444,18 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                               CachedNetworkImage(
                                 imageUrl: post.mediaUrl,
                                 fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  color: Colors.grey.shade300,
-                                  child: const Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  color: Colors.grey.shade300,
-                                  child: const Icon(Icons.error),
-                                ),
+                                placeholder:
+                                    (context, url) => Container(
+                                      color: Colors.grey.shade300,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    ),
+                                errorWidget:
+                                    (context, url, error) => Container(
+                                      color: Colors.grey.shade300,
+                                      child: const Icon(Icons.error),
+                                    ),
                               ),
 
                               if (post.isVideo)
@@ -487,15 +517,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          count.toString(),
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
+        Text(count.toString(), style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
       ],
     );
   }
@@ -507,7 +531,11 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverAppBarDelegate(this._tabBar);
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       child: _tabBar,

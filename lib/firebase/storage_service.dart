@@ -110,7 +110,12 @@ class StorageService {
       quality: 70, // Adjust quality as needed
     );
 
-    return File(result?.path ?? file.path);
+    if (result == null) {
+      print("Image compression failed, using original file");
+      return file;
+    }
+
+    return File(result.path);
   }
 
   // Generate video thumbnail

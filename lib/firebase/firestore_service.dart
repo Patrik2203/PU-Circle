@@ -246,7 +246,7 @@ class FirestoreService {
       QuerySnapshot snapshot = await _firestore
           .collection('users')
           .where('username', isGreaterThanOrEqualTo: query)
-          .where('username', isLessThanOrEqualTo: query + '\uf8ff')
+          .where('username', isLessThanOrEqualTo: '$query\uf8ff')
           .get();
 
       return snapshot.docs

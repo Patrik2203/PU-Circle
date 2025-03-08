@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (userData == null) {
         print("DEBUG: No user data found for $currentUserId");
         // Create default profile logic
-        await _authService.createDefaultUserProfile(currentUserId);
+        // await _authService.createDefaultUserProfile(currentUserId);
 
         final retryData = await _authService.getUserData(currentUserId);
         if (retryData == null) {

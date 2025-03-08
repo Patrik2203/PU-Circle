@@ -25,31 +25,32 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   // Create a default user profile if it doesn't exist
-  Future<void> createDefaultUserProfile(String uid) async {
-    try {
-      // Check if user already exists
-      final docSnapshot = await _firestore.collection('users').doc(uid).get();
-      if (docSnapshot.exists) return;
-
-      // Create a default profile for the user
-      final user = _auth.currentUser;
-      await _firestore.collection('users').doc(uid).set({
-        'uid': uid,
-        'email': user?.email ?? '',
-        'username': 'User_${uid.substring(0, 5)}',
-        'profileImageUrl': '',
-        'bio': '',
-        'gender': 'Prefer not to say',
-        'isSingle': true,
-        'isAdmin': false,
-        'followers': [],
-        'following': [],
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      throw _handleException(e);
-    }
-  }
+  // Future<void> createDefaultUserProfile(String uid) async {
+  //   try {
+  //     // Check if user already exists
+  //     final docSnapshot = await _firestore.collection('users').doc(uid).get();
+  //     if (docSnapshot.exists) return;
+  //
+  //     // Create a default profile for the user
+  //     final user = _auth.currentUser;
+  //     await _firestore.collection('users').doc(uid).set({
+  //       'uid': uid,
+  //       'email': user?.email ?? '',
+  //       'username': 'User_${uid.substring(0, 5)}',
+  //       'profileImageUrl': '',
+  //       'bio': '',
+  //       'gender': 'Prefer not to say',
+  //       'isSingle': true,
+  //       'isAdmin': false,
+  //       'followers': [],
+  //       'following': [],
+  //       'interests': [],
+  //       'createdAt': FieldValue.serverTimestamp(),
+  //     });
+  //   } catch (e) {
+  //     throw _handleException(e);
+  //   }
+  // }
 
   // Signup with email and password
   Future<UserCredential> signUp({
@@ -72,27 +73,46 @@ class AuthService {
         password: password,
       );
 
-      // Send email verification
-      // await sendEmailVerification(userCredential.user!);
+      print("User created in Authentication: ${userCredential.user!.uid}");
 
-      // Create user document in Firestore
-      await _firestore.collection('users').doc(userCredential.user!.uid).set({
-        'uid': userCredential.user!.uid,
-        'email': email,
-        'username': username,
-        'profileImageUrl': profileImageUrl ?? '',
-        'bio': bio ?? '',
-        'gender': gender,
-        'isSingle': isSingle,
-        'isAdmin': false,
-        'followers': [],
-        'following': [],
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      // Create user document in Firestore with explicit types
+      try {
+        Map<String, dynamic> userData = {
+          'uid': userCredential.user!.uid,
+          'email': email,
+          'username': username,
+          'profileImageUrl': profileImageUrl ?? '',
+          'bio': bio ?? '',
+          'gender': gender,
+          'isSingle': isSingle,
+          'isAdmin': false,
+          'followers': <String>[],  // Empty array with proper type
+          'following': <String>[],  // Empty array with proper type
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+
+        await _firestore.collection('users').doc(userCredential.user!.uid).set(userData);
+        print("User document created in Firestore");
+      } catch (firestoreError) {
+        print("Error creating user document in Firestore: $firestoreError");
+        throw AuthException('firestore-error', 'Account created but profile setup failed: $firestoreError');
+      }
 
       return userCredential;
     } catch (e) {
+      print("Error in signUp function: $e");
       throw _handleException(e);
+    }
+  }
+
+  // Check if user exists in Firestore
+  Future<bool> userExistsInFirestore(String uid) async {
+    try {
+      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
+      return doc.exists;
+    } catch (e) {
+      print("Error checking if user exists: $e");
+      return false;
     }
   }
 
@@ -132,7 +152,7 @@ class AuthService {
       );
 
       // Check if user has a profile in Firestore, create if not
-      await createDefaultUserProfile(credential.user!.uid);
+      // await createDefaultUserProfile(credential.user!.uid);
 
       return credential;
     } catch (e) {

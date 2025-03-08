@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -62,8 +63,10 @@ class _SignupScreenState extends State<SignupScreen> {
         );
       }
 
+      print("About to create user with: Email: ${_emailController.text.trim()}, Username: ${_usernameController.text.trim()}, Gender: $_selectedGender");
+
       // Create user with email and password
-      await _authService.signUp(
+      UserCredential userCredential = await _authService.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         username: _usernameController.text.trim(),
@@ -73,11 +76,17 @@ class _SignupScreenState extends State<SignupScreen> {
         profileImageUrl: profileImageUrl,
       );
 
+      // Check if user was created in Firestore
+      bool userExists = await _authService.userExistsInFirestore(userCredential.user!.uid);
+      if (!userExists) {
+        throw Exception("Failed to create user profile. Please try again.");
+      }
+
       if (!mounted) return;
 
       AppHelpers.showSnackBar(
         context,
-        'Account created! Please check your email for verification.',
+        'Account created successfully!',
       );
 
       // Navigate back to login screen
@@ -87,6 +96,7 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
       );
     } catch (e) {
+      print("Signup error: $e");
       AppHelpers.showSnackBar(context, e.toString());
     } finally {
       if (mounted) {

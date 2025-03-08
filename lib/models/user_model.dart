@@ -36,7 +36,7 @@ class UserModel {
       username: map['username'] ?? '',
       profileImageUrl: map['profileImageUrl'] ?? '',
       bio: map['bio'] ?? '',
-      gender: map['gender'] ?? 'male',
+        gender: map['gender'] ?? 'Prefer not to say',
       isSingle: map['isSingle'] ?? false,
       isAdmin: map['isAdmin'] ?? false,
       followers: List<String>.from(map['followers'] ?? []),
