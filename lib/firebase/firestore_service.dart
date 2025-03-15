@@ -262,24 +262,52 @@ class FirestoreService {
   }
 
   Future<void> createDefaultUserProfile(String uid) async {
-    // Check if user already exists
-    final docSnapshot = await _firestore.collection('users').doc(uid).get();
-    if (docSnapshot.exists) return;
+    try {
+      print("DEBUG: Starting default user profile creation for uid: $uid");
+      
+      // Check if user already exists
+      final docSnapshot = await _firestore.collection('users').doc(uid).get();
+      if (docSnapshot.exists) {
+        print("DEBUG: User document already exists");
+        return;
+      }
 
-    // Create a default profile for the user
-    final user = _auth.currentUser;
-    await _firestore.collection('users').doc(uid).set({
-      'uid': uid,
-      'email': user?.email ?? '',
-      'username': 'User_${uid.substring(0, 5)}',
-      'profileImageUrl': '',
-      'bio': '',
-      'gender': 'Prefer not to say',
-      'isSingle': true,
-      'isAdmin': false,
-      'followers': [],
-      'following': [],
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+      // Create a default profile for the user
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('No authenticated user found');
+      }
+
+      print("DEBUG: Creating user document with email: ${user.email}");
+
+      // Create user data with explicit typing and null safety
+      await _firestore.collection('users').doc(uid).set({
+        'uid': uid,
+        'email': user.email ?? '',
+        'username': 'User_${uid.substring(0, 5)}',
+        'profileImageUrl': '',
+        'bio': '',
+        'gender': 'Prefer not to say',
+        'isSingle': true,
+        'isAdmin': false,
+        'followers': [],
+        'following': [],
+        'interests': [],
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Verify document creation
+      final verifyDoc = await _firestore.collection('users').doc(uid).get();
+      if (!verifyDoc.exists) {
+        print("DEBUG: Document creation verification failed");
+        throw Exception('Failed to verify user document creation');
+      }
+
+      print("DEBUG: Default user profile created successfully");
+    } catch (e) {
+      print("DEBUG: Error creating default user profile: $e");
+      print("DEBUG: Error type: ${e.runtimeType}");
+      rethrow;
+    }
   }
 }

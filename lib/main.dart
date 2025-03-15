@@ -13,15 +13,36 @@ import 'utils/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
 
-  await FirebaseAppCheck.instance.activate(
-    // For debug/development, use this:
-    androidProvider: AndroidProvider.debug,
-    // For production, use this:
-    // androidProvider: AndroidProvider.playIntegrity,
-    // iosProvider: IOSProvider.appAttest,
-  );
+  try {
+    // Initialize Firebase first
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: 'AIzaSyDKsu1auXSwrzXOPzqmgdiOVSbRCoqH0ws',
+        appId: '1:716193298227:android:1e50b2768155708ecc3046',
+        messagingSenderId: '716193298227',
+        projectId: 'pu-circle-cddb9',
+        storageBucket: 'pu-circle-cddb9.firebasestorage.app'
+      ),
+    );
+
+    print("DEBUG: Firebase core initialized");
+
+    // Initialize App Check with more specific error handling
+    try {
+      await FirebaseAppCheck.instance.activate(
+        androidProvider: AndroidProvider.debug,
+        appleProvider: AppleProvider.debug,
+      );
+      print("DEBUG: App Check activated successfully");
+    } catch (appCheckError) {
+      print("DEBUG: App Check activation error: $appCheckError");
+      // Continue anyway as this might be an emulator issue
+    }
+
+  } catch (e) {
+    print('Firebase initialization error: $e');
+  }
 
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([

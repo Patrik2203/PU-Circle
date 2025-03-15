@@ -20,7 +20,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.pu_circle"
-        minSdk = 21  // Adjust as needed
+        minSdk = 23  // Adjust as needed
         //noinspection OldTargetApi
         targetSdk = 34 // Adjust as needed
         versionCode = 1

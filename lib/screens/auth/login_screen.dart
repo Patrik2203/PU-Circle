@@ -31,6 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      print("DEBUG: Starting login process");
       await _authService.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -38,11 +39,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
+      print("DEBUG: Login successful, navigating to home screen");
       // Navigate to home screen
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } catch (e) {
+      print("DEBUG: Login error: $e");
+      if (!mounted) return;
       AppHelpers.showSnackBar(context, e.toString());
     } finally {
       if (mounted) {
@@ -51,6 +55,14 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
+  }
+
+  void _navigateToSignup() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const SignupScreen(),
+      ),
+    );
   }
 
   @override
@@ -138,18 +150,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Text("Don't have an account? "),
                   GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const SignupScreen(),
-                        ),
-                      );
-                    },
+                    onTap: _isLoading ? null : _navigateToSignup,
                     child: const Text(
                       "Sign up",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: AppColors.primary, // Fixed color reference
+                        color: AppColors.primary,
                       ),
                     ),
                   ),

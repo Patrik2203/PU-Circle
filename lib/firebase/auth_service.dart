@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../utils/retry_helper.dart';
+import './firestore_service.dart';
 
 class AuthException implements Exception {
   final String message;
@@ -17,6 +20,7 @@ class AuthException implements Exception {
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirestoreService _firestoreService = FirestoreService();
 
   // Get current user
   User? get currentUser => _auth.currentUser;
@@ -24,35 +28,7 @@ class AuthService {
   // Stream of auth changes
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Create a default user profile if it doesn't exist
-  // Future<void> createDefaultUserProfile(String uid) async {
-  //   try {
-  //     // Check if user already exists
-  //     final docSnapshot = await _firestore.collection('users').doc(uid).get();
-  //     if (docSnapshot.exists) return;
-  //
-  //     // Create a default profile for the user
-  //     final user = _auth.currentUser;
-  //     await _firestore.collection('users').doc(uid).set({
-  //       'uid': uid,
-  //       'email': user?.email ?? '',
-  //       'username': 'User_${uid.substring(0, 5)}',
-  //       'profileImageUrl': '',
-  //       'bio': '',
-  //       'gender': 'Prefer not to say',
-  //       'isSingle': true,
-  //       'isAdmin': false,
-  //       'followers': [],
-  //       'following': [],
-  //       'interests': [],
-  //       'createdAt': FieldValue.serverTimestamp(),
-  //     });
-  //   } catch (e) {
-  //     throw _handleException(e);
-  //   }
-  // }
-
-  // Signup with email and password
+  // Sign up with email and password
   Future<UserCredential> signUp({
     required String email,
     required String password,
@@ -66,41 +42,74 @@ class AuthService {
     if (connectivityResult == ConnectivityResult.none) {
       throw AuthException('no-internet', 'No internet connection. Please check your network settings.');
     }
+
     try {
-      // Create user with email and password
+      print("DEBUG: Starting user creation in Firebase Auth");
+      
+      // Create user with email and password first
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      print("User created in Authentication: ${userCredential.user!.uid}");
-
-      // Create user document in Firestore with explicit types
-      try {
-        Map<String, dynamic> userData = {
-          'uid': userCredential.user!.uid,
-          'email': email,
-          'username': username,
-          'profileImageUrl': profileImageUrl ?? '',
-          'bio': bio ?? '',
-          'gender': gender,
-          'isSingle': isSingle,
-          'isAdmin': false,
-          'followers': <String>[],  // Empty array with proper type
-          'following': <String>[],  // Empty array with proper type
-          'createdAt': FieldValue.serverTimestamp(),
-        };
-
-        await _firestore.collection('users').doc(userCredential.user!.uid).set(userData);
-        print("User document created in Firestore");
-      } catch (firestoreError) {
-        print("Error creating user document in Firestore: $firestoreError");
-        throw AuthException('firestore-error', 'Account created but profile setup failed: $firestoreError');
+      if (userCredential.user == null) {
+        throw AuthException('auth-error', 'Failed to create user account.');
       }
 
-      return userCredential;
+      print("DEBUG: User created in Authentication: ${userCredential.user!.uid}");
+
+      try {
+        // First create the default profile
+        print("DEBUG: Creating default user profile");
+        await _firestoreService.createDefaultUserProfile(userCredential.user!.uid);
+        
+        print("DEBUG: Updating user profile with provided information");
+        // Then update with user-provided information
+        Map<String, dynamic> updateData = {
+          'email': email,
+          'username': username,
+          'gender': gender,
+          'isSingle': isSingle,
+        };
+        
+        // Only add optional fields if they are provided
+        if (bio != null && bio.isNotEmpty) {
+          updateData['bio'] = bio;
+        }
+        if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
+          updateData['profileImageUrl'] = profileImageUrl;
+        }
+
+        await _firestore
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .update(updateData);
+
+        print("DEBUG: User profile updated successfully");
+        return userCredential;
+      } catch (firestoreError) {
+        print("DEBUG: Firestore Error: $firestoreError");
+        print("DEBUG: Firestore Error Type: ${firestoreError.runtimeType}");
+        
+        // Clean up: delete the auth user since document creation failed
+        try {
+          await userCredential.user!.delete();
+          print("DEBUG: Auth user deleted after Firestore error");
+        } catch (deleteError) {
+          print("DEBUG: Error deleting auth user: $deleteError");
+        }
+        
+        throw AuthException('firestore-error', 'Failed to create user profile: ${firestoreError.toString()}');
+      }
     } catch (e) {
-      print("Error in signUp function: $e");
+      print("DEBUG: Error in signUp function: $e");
+      print("DEBUG: Error type: ${e.runtimeType}");
+      
+      if (e is FirebaseAuthException) {
+        print("DEBUG: Firebase Auth Error Code: ${e.code}");
+        print("DEBUG: Firebase Auth Error Message: ${e.message}");
+      }
+      
       throw _handleException(e);
     }
   }
@@ -116,43 +125,22 @@ class AuthService {
     }
   }
 
-  // Modern email verification compatible with 2025 changes
-  // Future<void> sendEmailVerification(User user) async {
-  //   try {
-  //     await user.sendEmailVerification(
-  //       ActionCodeSettings(
-  //         url: 'https://your-app-domain.com/finishSignUp?email=${user.email}',
-  //         handleCodeInApp: true,
-  //         androidPackageName: 'com.example.pucircle',
-  //         androidInstallApp: true,
-  //         androidMinimumVersion: '12',
-  //         iOSBundleId: 'com.example.pucircle',
-  //       ),
-  //     );
-  //   } catch (e) {
-  //     throw _handleException(e);
-  //   }
-  // }
-
   // Login with email and password
   Future<UserCredential> login({
     required String email,
     required String password,
   }) async {
-
     // Check connectivity first
     var connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult == ConnectivityResult.none) {
       throw AuthException('no-internet', 'No internet connection. Please check your network settings.');
     }
+
     try {
       UserCredential credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      // Check if user has a profile in Firestore, create if not
-      // await createDefaultUserProfile(credential.user!.uid);
 
       return credential;
     } catch (e) {
@@ -199,20 +187,51 @@ class AuthService {
   }
 
   // Get user data
-// Get user data with retry logic
   Future<UserModel?> getUserData(String uid) async {
-    return retry(() async {
-      try {
-        DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
-        if (doc.exists) {
-          return UserModel.fromMap(doc.data() as Map<String, dynamic>);
-        }
-        return null;
-      } catch (e) {
-        print("Error getting user data: $e");
-        return null;
+    try {
+      print("DEBUG: Attempting to get user data for $uid");
+      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
+
+      if (doc.exists && doc.data() != null) {
+        Map<String, dynamic> userData = doc.data() as Map<String, dynamic>;
+        print("DEBUG: Raw user data: $userData"); // Debug print
+
+        // Create a UserModel with safe type casting
+        UserModel user = UserModel(
+          uid: userData['uid']?.toString() ?? '',
+          email: userData['email']?.toString() ?? '',
+          username: userData['username']?.toString() ?? '',
+          profileImageUrl: userData['profileImageUrl']?.toString() ?? '',
+          bio: userData['bio']?.toString() ?? '',
+          gender: userData['gender']?.toString() ?? '',
+          isSingle: userData['isSingle'] as bool? ?? false,
+          isAdmin: userData['isAdmin'] as bool? ?? false,
+          followers: List<String>.from(userData['followers'] ?? []),
+          following: List<String>.from(userData['following'] ?? []),
+          interests: List<String>.from(userData['interests'] ?? []),
+          createdAt: userData['createdAt'] != null ?
+            (userData['createdAt'] as Timestamp).toDate() : DateTime.now(),
+        );
+
+        print("DEBUG: User data found for $uid");
+        return user;
       }
-    }, maxRetries: 3);
+
+      print("DEBUG: No user data found for $uid");
+      return null;
+    } catch (e) {
+      print("DEBUG: Error getting user data: $e");
+      print("DEBUG: Error type: ${e.runtimeType}");
+      return null;
+    }
+  }
+
+  // Helper method to safely convert any list to List<String>
+  List<String> _convertToStringList(dynamic value) {
+    if (value == null) return [];
+    if (value is! List) return [];
+
+    return value.map((item) => item?.toString() ?? '').toList().cast<String>();
   }
 
   // Follow user
