@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import '../../firebase/auth_service.dart';
+import '../../firebase/cloudinary_service.dart';
 import '../../firebase/firestore_service.dart';
 import '../../firebase/storage_service.dart';
 import '../../utils/colors.dart';
@@ -25,7 +26,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _captionController = TextEditingController();
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
-  final StorageService _storageService = StorageService();
+  // final StorageService _storageService = StorageService();
+  final CloudinaryService _cloudinaryService = CloudinaryService();
   final ImagePicker _picker = ImagePicker();
 
   bool _isLoading = false;
@@ -158,19 +160,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       // Create unique filename with timestamp and user ID
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final String fileName = '${currentUser.uid}_$timestamp';
-      
+
       print("DEBUG: Generated filename: $fileName");
 
       String mediaUrl;
       if (_isVideo) {
         print("DEBUG: Uploading video file");
-        mediaUrl = await _storageService.uploadPostVideo(
+        mediaUrl = await _cloudinaryService.uploadPostVideo(
           _mediaFile!,
           fileName: fileName,
         );
       } else {
         print("DEBUG: Uploading image file");
-        mediaUrl = await _storageService.uploadPostImage(
+        mediaUrl = await _cloudinaryService.uploadPostImage(
           _mediaFile!,
           fileName: fileName,
         );

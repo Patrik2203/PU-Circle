@@ -20,7 +20,6 @@ class StorageService {
         'posts/videos/',
         'posts/thumbnails/',
         'profiles/',
-        'chats/images/'
       ];
 
       for (String path in paths) {

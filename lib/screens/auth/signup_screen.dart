@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../firebase/auth_service.dart';
+import '../../firebase/cloudinary_service.dart';
 import '../../firebase/storage_service.dart';
 import '../../utils/colors.dart';
 import '../../utils/helpers.dart';
@@ -23,7 +24,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
   final AuthService _authService = AuthService();
-  final StorageService _storageService = StorageService();
+  // final StorageService _storageService = StorageService();
+  final CloudinaryService _cloudinaryService = CloudinaryService();
   final ImagePicker _picker = ImagePicker();
 
   bool _isLoading = false;
@@ -59,7 +61,7 @@ class _SignupScreenState extends State<SignupScreen> {
       // Upload profile image if selected
       if (_image != null) {
         print("DEBUG: Uploading profile image");
-        profileImageUrl = await _storageService.uploadProfileImage(
+        profileImageUrl = await _cloudinaryService.uploadProfileImage(
           _image!,
           'profile_${DateTime.now().millisecondsSinceEpoch}',
         );
