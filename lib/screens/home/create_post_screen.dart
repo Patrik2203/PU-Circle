@@ -153,24 +153,40 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         throw Exception('User not authenticated');
       }
 
-      // Upload media file to storage
+      print("DEBUG: Starting post creation for user ${currentUser.uid}");
+
+      // Create unique filename with timestamp and user ID
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final String mediaPath = _isVideo
-          ? 'posts/videos/${currentUser.uid}_$timestamp.mp4'
-          : 'posts/images/${currentUser.uid}_$timestamp.jpg';
+      final String fileName = '${currentUser.uid}_$timestamp';
+      
+      print("DEBUG: Generated filename: $fileName");
 
-      final String mediaUrl = _isVideo
-          ? await _storageService.uploadPostVideo(_mediaFile!)
-          : await _storageService.uploadPostImage(_mediaFile!);
+      String mediaUrl;
+      if (_isVideo) {
+        print("DEBUG: Uploading video file");
+        mediaUrl = await _storageService.uploadPostVideo(
+          _mediaFile!,
+          fileName: fileName,
+        );
+      } else {
+        print("DEBUG: Uploading image file");
+        mediaUrl = await _storageService.uploadPostImage(
+          _mediaFile!,
+          fileName: fileName,
+        );
+      }
 
+      print("DEBUG: Media uploaded successfully. URL: $mediaUrl");
 
       // Create post in Firestore
-      await _firestoreService.createPost(
+      final postId = await _firestoreService.createPost(
         userId: currentUser.uid,
-        caption: _captionController.text,
+        caption: _captionController.text.trim(),
         mediaUrl: mediaUrl,
         isVideo: _isVideo,
       );
+
+      print("DEBUG: Post created in Firestore with ID: $postId");
 
       // Call callback to refresh posts
       widget.onPostCreated();
@@ -180,9 +196,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       // Show success message and pop screen
       AppHelpers.showSnackBar(context, 'Post created successfully!');
       Navigator.pop(context);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print("ERROR: Post creation failed");
+      print("Error details: $e");
+      print("Stack trace: $stackTrace");
+      
       if (mounted) {
-        AppHelpers.showSnackBar(context, 'Error creating post: ${e.toString()}');
+        String errorMessage = 'Failed to create post. ';
+        if (e.toString().contains('storage/object-not-found')) {
+          errorMessage += 'Storage path not found. Please try again.';
+        } else if (e.toString().contains('storage/unauthorized')) {
+          errorMessage += 'Unauthorized access. Please check your permissions.';
+        } else {
+          errorMessage += 'Please try again. Error: ${e.toString()}';
+        }
+        
+        AppHelpers.showSnackBar(context, errorMessage);
       }
     } finally {
       if (mounted) {

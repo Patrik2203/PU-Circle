@@ -100,7 +100,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
 
         // Create message document
         await _firestore.collection('chats').doc(_chatRoomId).collection('messages').add({
-          'text': message,
+          'content': message,  // CHANGE THIS LINE FROM 'text' to 'content'
           'senderId': currentUser.uid,
           'timestamp': FieldValue.serverTimestamp(),
           'read': false,

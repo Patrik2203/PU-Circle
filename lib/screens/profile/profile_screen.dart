@@ -31,6 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   late TabController _tabController;
   late Future<UserModel?> _userFuture;
   late Future<List<PostModel>> _postsFuture;
+  bool _isCurrentUser = false;
 
   bool _isFollowing = false;
   int _followersCount = 0;
@@ -41,6 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _isCurrentUser = widget.isCurrentUser || widget.userId == _authService.currentUser?.uid;
     _loadUserData();
   }
 
@@ -354,7 +356,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         SizedBox(
                           width: double.infinity,
                           child:
-                              widget.isCurrentUser
+                              _isCurrentUser
                                   ? OutlinedButton(
                                     onPressed: () {
                                       Navigator.push(

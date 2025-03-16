@@ -101,13 +101,13 @@ class MatchService {
   }
 
   // Create a match between two users
-  Future<void> createMatch(String userId1, String userId2) async {
+  Future<void> createMatch(String userId1, String userId2, {bool matchedByAdmin = false}) async {
     try {
       // Create match document
       await _firestore.collection('matches').add({
         'userId1': userId1,
         'userId2': userId2,
-        'matchedByAdmin': false,
+        'matchedByAdmin': matchedByAdmin,
         'createdAt': FieldValue.serverTimestamp(),
       });
 

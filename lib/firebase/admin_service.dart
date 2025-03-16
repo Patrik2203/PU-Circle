@@ -149,13 +149,13 @@ class AdminService {
       });
 
       // Notify both users
-      await _notificationService.sendMatchNotification(
+      await _notificationService.sendAlgorithmMatchNotification(
         userId1,
         userId2,
         'You have a new match! Our algorithm matched you with someone special.',
       );
 
-      await _notificationService.sendMatchNotification(
+      await _notificationService.sendAlgorithmMatchNotification(
         userId2,
         userId1,
         'You have a new match! Our algorithm matched you with someone special.',

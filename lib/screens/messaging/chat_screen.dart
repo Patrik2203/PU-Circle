@@ -8,6 +8,7 @@ import '../../firebase/messaging_service.dart';
 import '../../models/chat_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/colors.dart';
+import '../../screens/profile/profile_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final String chatId;
@@ -34,7 +35,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = true;
   bool _isSending = false;
   File? _imageFile;
-  bool _showEmojiPicker = false;
+  // bool _showEmojiPicker = false;
 
   @override
   void initState() {
@@ -183,35 +184,62 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _navigateToProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfileScreen(
+          userId: widget.otherUser.uid,
+          isCurrentUser: false,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundImage: widget.otherUser.profileImageUrl != null &&
-                  widget.otherUser.profileImageUrl!.isNotEmpty
-                  ? NetworkImage(widget.otherUser.profileImageUrl!)
-                  : null,
-              child: widget.otherUser.profileImageUrl == null ||
-                  widget.otherUser.profileImageUrl!.isEmpty
-                  ? Text(
-                widget.otherUser.username?.substring(0, 1).toUpperCase() ?? '?',
-                style: const TextStyle(fontSize: 14),
-              )
-                  : null,
-            ),
-            const SizedBox(width: 8),
-            Text(widget.otherUser.username ?? 'User'),
-          ],
+        title: GestureDetector(
+          onTap: _navigateToProfile,
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.grey[200],
+                backgroundImage: widget.otherUser.profileImageUrl != null &&
+                    widget.otherUser.profileImageUrl!.isNotEmpty
+                    ? NetworkImage(widget.otherUser.profileImageUrl!)
+                    : null,
+                child: widget.otherUser.profileImageUrl == null ||
+                    widget.otherUser.profileImageUrl!.isEmpty
+                    ? Text(
+                  widget.otherUser.username?.substring(0, 1).toUpperCase() ?? '?',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.otherUser.username ?? 'User',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Tap to view profile',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.videocam_outlined),
             onPressed: () {
-              // Implement video call feature in the future
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Video calling coming soon!')),
               );
@@ -286,43 +314,45 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildEmptyChat() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.chat_bubble_outline,
-            size: 80,
-            color: AppColors.textLight,
+  return Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(
+          Icons.chat_bubble_outline,
+          size: 80,
+          color: AppColors.textLight,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'No messages yet',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 16),
-          Text(
-            'No messages yet',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Say hi to start the conversation!',
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Text(
+            'Start the conversation with a quick message!',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: AppColors.textSecondary,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _sendPredefinedMessage,
-            icon: const Icon(Icons.send),
-            label: const Text('Send a quick message'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () {
+            _messageController.text = "Wanna meet at PU Circle or on a tea post?";
+            _sendPredefinedMessage();
+          },
+          child: const Text('Send a greeting'),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildMessagesList() {
     final currentUserId = _auth.currentUser!.uid;
@@ -372,21 +402,28 @@ class _ChatScreenState extends State<ChatScreen> {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        margin: EdgeInsets.only(
+          bottom: 8,
+          left: isMe ? 64 : 0,
+          right: isMe ? 0 : 64,
         ),
         decoration: BoxDecoration(
           color: isMe ? AppColors.primary : Colors.grey[200],
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image if present
             if (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)
               ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 child: Image.network(
                   message.mediaUrl!,
                   loadingBuilder: (context, child, loadingProgress) {
@@ -408,27 +445,24 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
 
-            // Message text
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    message.content,
+                    message.content ?? "", // Add null check and default empty string
                     style: TextStyle(
-                      color: isMe ? Colors.white : Colors.black,
+                      color: isMe ? Colors.white : Colors.black87,
+                      fontSize: 16,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Text(
-                      _formatMessageTime(message.timestamp),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: isMe ? Colors.white70 : Colors.black54,
-                      ),
+                  Text(
+                    _formatMessageTime(message.timestamp),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isMe ? Colors.white70 : Colors.black45,
                     ),
                   ),
                 ],
@@ -459,10 +493,6 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.add),
             onPressed: _showAttachmentOptions,
           ),
-          IconButton(
-            icon: const Icon(Icons.image),
-            onPressed: _pickImage,
-          ),
           Expanded(
             child: TextField(
               controller: _messageController,
@@ -476,14 +506,6 @@ class _ChatScreenState extends State<ChatScreen> {
               keyboardType: TextInputType.multiline,
               onSubmitted: (_) => _sendMessage(),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.emoji_emotions_outlined),
-            onPressed: () {
-              setState(() {
-                _showEmojiPicker = !_showEmojiPicker;
-              });
-            },
           ),
           IconButton(
             icon: _isSending
@@ -503,13 +525,16 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showAttachmentOptions() {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.photo),
+              leading: const Icon(Icons.photo_library, color: AppColors.primary),
               title: const Text('Gallery'),
               onTap: () {
                 Navigator.pop(context);
@@ -517,7 +542,7 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt),
+              leading: const Icon(Icons.camera_alt, color: AppColors.primary),
               title: const Text('Camera'),
               onTap: () async {
                 Navigator.pop(context);
@@ -530,7 +555,7 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.location_on),
+              leading: const Icon(Icons.location_on, color: AppColors.primary),
               title: const Text('Location'),
               onTap: () {
                 Navigator.pop(context);
@@ -548,18 +573,20 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showChatOptions() {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.person),
+              leading: const Icon(Icons.person, color: AppColors.primary),
               title: const Text('View Profile'),
               onTap: () {
                 Navigator.pop(context);
-                // Navigate to user profile
-                // Navigator.push(context, MaterialPageRoute(...));
+                _navigateToProfile();
               },
             ),
             ListTile(
@@ -575,7 +602,9 @@ class _ChatScreenState extends State<ChatScreen> {
               title: const Text('Block User', style: TextStyle(color: AppColors.error)),
               onTap: () {
                 Navigator.pop(context);
-                // Implement block user functionality
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Block feature coming soon!')),
+                );
               },
             ),
           ],

@@ -115,6 +115,7 @@ lib/
 │   ├── notification_item_widget.dart
 │   ├── post_widget.dart
 │   ├── profile_card_widget.dart
+│   ├── match_animation_widget.dart
 │
 │── main.dart
 ```

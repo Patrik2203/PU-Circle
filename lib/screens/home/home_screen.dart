@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pu_circle/screens/admin/user_management.dart';
 import '../../firebase/auth_service.dart';
 import '../../firebase/firestore_service.dart';
 import '../../models/post_model.dart';
@@ -208,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final List<Widget> _screens = [
-      _buildBody(),
+      _buildHomeScreen(),
       const MatchScreen(),
       const SizedBox(), // Placeholder for FAB
       const ChatListScreen(),
@@ -216,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: _currentIndex == 0 ? AppBar(
         title: const Text(
           'PU Circle',
           style: TextStyle(
@@ -225,6 +226,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+             //navigate to search screen
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
@@ -246,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Navigate back to login screen
                 Navigator.of(context).pushNamedAndRemoveUntil(
                   '/login',
-                      (route) => false,
+                  (route) => false,
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -256,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ],
-      ),
+      ) : null,
       body: _screens[_currentIndex] == const SizedBox()
           ? _screens[0] // Show home screen if FAB placeholder is selected
           : _screens[_currentIndex],
@@ -308,5 +315,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildHomeScreen() {
+    return _buildBody();
   }
 }

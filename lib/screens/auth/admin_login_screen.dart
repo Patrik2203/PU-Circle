@@ -53,7 +53,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       }
 
       final userData = await _authService.getUserData(currentUser.uid);
-      if (userData == null || userData.isAdmin) {
+      if (userData == null || !userData.isAdmin) {
         // Log out if not admin
         await _authService.logout();
         throw Exception('You do not have admin privileges');
@@ -61,9 +61,10 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
       if (!mounted) return;
 
-      // Navigate to admin dashboard
-      Navigator.of(context).pushReplacement(
+      // Navigate to admin dashboard and remove all previous routes
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const AdminDashboard()),
+        (route) => false, // This will remove all previous routes
       );
     } catch (e) {
       AppHelpers.showSnackBar(context, e.toString());
@@ -92,94 +93,104 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         backgroundColor: AppColors.adminSecondary,
       ),
       body: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          width: double.infinity,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Flexible(child: Container(), flex: 1),
-
-              // App Logo
-              const Text(
-                'PU Circle',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.adminSecondary,
-                ),
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height - 
+                          MediaQuery.of(context).padding.top - 
+                          MediaQuery.of(context).padding.bottom - 
+                          kToolbarHeight,
               ),
-              const SizedBox(height: 10),
-              const Text(
-                'Admin Panel',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // Email Input
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  hintText: 'Admin Email',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 24),
-
-              // Password Input
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                  hintText: 'Password',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 24),
-
-              // Admin Passkey Input
-              TextFormField(
-                controller: _passkeyController,
-                decoration: const InputDecoration(
-                  hintText: 'Admin Passkey',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 24),
-
-              // Login Button
-              InkWell(
-                onTap: _isLoading ? null : _adminLogin,
-                child: Container(
-                  width: double.infinity,
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: const BoxDecoration(
-                    borderRadius: BorderRadius.all(Radius.circular(4)),
-                    color: AppColors.adminSecondary,
-                  ),
-                  child: _isLoading
-                      ? LoadingAnimationWidget.staggeredDotsWave(
-                    color: Colors.white,
-                    size: 24,
-                  )
-                      : const Text(
-                    'Admin Login',
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 20),
+                  
+                  // App Logo
+                  const Text(
+                    'PU Circle',
                     style: TextStyle(
-                      color: Colors.white,
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.adminSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Admin Panel',
+                    style: TextStyle(
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-              ),
+                  const SizedBox(height: 40),
 
-              Flexible(flex: 2, child: Container()),
-            ],
+                  // Email Input
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      hintText: 'Admin Email',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Password Input
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(
+                      hintText: 'Password',
+                      border: OutlineInputBorder(),
+                    ),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Admin Passkey Input
+                  TextFormField(
+                    controller: _passkeyController,
+                    decoration: const InputDecoration(
+                      hintText: 'Admin Passkey',
+                      border: OutlineInputBorder(),
+                    ),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Login Button
+                  InkWell(
+                    onTap: _isLoading ? null : _adminLogin,
+                    child: Container(
+                      width: double.infinity,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: const BoxDecoration(
+                        borderRadius: BorderRadius.all(Radius.circular(4)),
+                        color: AppColors.adminSecondary,
+                      ),
+                      child: _isLoading
+                          ? LoadingAnimationWidget.staggeredDotsWave(
+                              color: Colors.white,
+                              size: 24,
+                            )
+                          : const Text(
+                              'Admin Login',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
           ),
         ),
       ),
