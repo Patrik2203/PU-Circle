@@ -75,6 +75,9 @@ class _MatchScreenState extends State<MatchScreen>
         setState(() {
           _potentialMatches = matches;
           _isLoading = false;
+          print(
+            "Loaded ${_potentialMatches.length} potential matches",
+          ); // Add this line
         });
       }
     } catch (e) {
@@ -281,132 +284,221 @@ class _MatchScreenState extends State<MatchScreen>
   Widget _buildMatchCards() {
     return Column(
       children: [
-        const SizedBox(height: kToolbarHeight + 20),
+        const SizedBox(height: kToolbarHeight + 34),
+        // Stylish instruction banner
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          margin: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primary.withOpacity(0.8), AppColors.primary],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.4),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.swipe, color: AppColors.primary, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Swipe right to connect',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+              const Icon(Icons.swipe, color: Colors.white, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                'Swipe cards to connect',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
         ),
+        // Main card area
         Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Use more screen space
-              final cardWidth = constraints.maxWidth * 0.95;
-              final cardHeight = constraints.maxHeight * 0.85;
-
-              return Stack(
-                alignment: Alignment.center,
-                children:
-                    _potentialMatches.asMap().entries.map((entry) {
-                      // Only show top 2 cards for better performance
-                      if (entry.key > 1) return const SizedBox.shrink();
-
-                      final user = entry.value;
-                      final isTop = entry.key == 0;
-
-                      return Positioned(
-                        // Center the card better
-                        top: 20.0 + (entry.key * 4),
-                        bottom: 20.0 + (entry.key * 4),
-                        child: SizedBox(
-                          width: cardWidth,
-                          height: cardHeight,
-                          child: Transform.scale(
-                            // Less aggressive scaling for better visibility
-                            scale: 1.0 - (entry.key * 0.03),
-                            child: IgnorePointer(
-                              ignoring: !isTop,
-                              child: Opacity(
-                                // Make background cards more visible
-                                opacity: isTop ? 1.0 : 0.0,
-                                child: Draggable<UserModel>(
-                                  data: user,
-                                  feedback: Material(
-                                    color: Colors.transparent,
-                                    child: SizedBox(
-                                      width: cardWidth,
-                                      height: cardHeight,
-                                      child: ProfileCardWidget(
-                                        user: user,
-                                        onLike: () {},
-                                        onDislike: () {},
-                                        onProfileTap: () {},
-                                        showActions: false,
-                                      ),
-                                    ),
-                                  ),
-                                  childWhenDragging: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: Colors.grey.withOpacity(0.3),
-                                      ),
-                                      color: Colors.grey.withOpacity(0.1),
-                                    ),
-                                  ),
-                                  child: ProfileCardWidget(
-                                    user: user,
-                                    showActions: isTop,
-                                    onLike: () => _handleSwipe(user, true),
-                                    onDislike: () => _handleSwipe(user, false),
-                                    onProfileTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => ProfileScreen(
-                                                userId: user.uid,
-                                              ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-              );
-            },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: _potentialMatches.isNotEmpty
+                ? _buildSwipeableCard(_potentialMatches[0])
+                : Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.mood_bad,
+                    size: 70,
+                    color: AppColors.primary.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'No more profiles to show',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Check back later for new friends',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 30),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 30,
+                        vertical: 12,
+                      ),
+                    ),
+                    onPressed: _loadPotentialMatches,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSwipeableCard(UserModel user) {
+    return Dismissible(
+      key: Key(user.uid),
+      direction: DismissDirection.horizontal,
+      onDismissed: (direction) {
+        bool isLiked = direction == DismissDirection.endToStart;
+        _handleSwipe(user, isLiked);
+      },
+      background: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.red.shade400, Colors.red.shade600],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Icon(
+          Icons.close,
+          color: Colors.white,
+          size: 40,
+        ),
+      ),
+      secondaryBackground: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.primary.withOpacity(0.8), AppColors.primary],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Icon(
+          Icons.check,
+          color: Colors.white,
+          size: 40,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Profile card takes up most of the space
+            Expanded(
+              child: ProfileCardWidget(
+                user: user,
+                showActions: false,
+                onLike: () {},
+                onDislike: () {},
+                onProfileTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProfileScreen(userId: user.uid),
+                    ),
+                  );
+                },
+              ),
+            ),
+            // Action buttons
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildActionButton(
+                    onPressed: () => _handleSwipe(user, false),
+                    icon: Icons.close,
+                    backgroundColor: Colors.white,
+                    iconColor: Colors.red,
+                    size: 65,
+                    shadow: true,
+                  ),
+                  const SizedBox(width: 40),
+                  _buildActionButton(
+                    onPressed: () => _handleSwipe(user, true),
+                    icon: Icons.favorite,
+                    backgroundColor: AppColors.primary,
+                    iconColor: Colors.white,
+                    size: 65,
+                    shadow: true,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required VoidCallback onPressed,
+    required IconData icon,
+    required Color backgroundColor,
+    required Color iconColor,
+    double size = 60,
+    bool shadow = false,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: backgroundColor,
+          boxShadow: shadow
+              ? [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ]
+              : null,
+        ),
+        child: Icon(icon, size: size * 0.45, color: iconColor),
+      ),
     );
   }
 }

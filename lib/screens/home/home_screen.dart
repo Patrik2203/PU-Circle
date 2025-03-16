@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pu_circle/screens/admin/user_management.dart';
+import 'package:pu_circle/screens/home/search_screen.dart';
 import '../../firebase/auth_service.dart';
 import '../../firebase/firestore_service.dart';
 import '../../models/post_model.dart';
@@ -229,7 +230,12 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-             //navigate to search screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SearchScreen(),
+                ),
+              );
             },
           ),
           IconButton(

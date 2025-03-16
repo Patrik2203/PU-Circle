@@ -14,30 +14,24 @@ class StorageService {
   Future<void> _ensureStoragePaths() async {
     print("DEBUG: Ensuring storage paths exist");
     try {
-      // Create placeholder files in each directory to ensure they exist
+      // Create empty files directly in each directory to ensure they exist
       final paths = [
-        'posts/images/.placeholder',
-        'posts/videos/.placeholder',
-        'posts/thumbnails/.placeholder',
-        'profiles/.placeholder',
-        'chats/images/.placeholder'
+        'posts/images/',
+        'posts/videos/',
+        'posts/thumbnails/',
+        'profiles/',
+        'chats/images/'
       ];
 
       for (String path in paths) {
         try {
-          final ref = _storage.ref().child(path);
-          // Check if placeholder exists
-          try {
-            await ref.getDownloadURL();
-            print("DEBUG: Path exists: $path");
-          } catch (e) {
-            // Create placeholder if it doesn't exist
-            final emptyData = Uint8List.fromList([0]); // Create a single-byte placeholder
-            await ref.putData(emptyData, SettableMetadata(contentType: 'application/octet-stream'));
-            print("DEBUG: Created placeholder for path: $path");
-          }
+          final emptyData = Uint8List.fromList([0]);
+          final ref = _storage.ref().child('${path}placeholder.tmp');
+          await ref.putData(emptyData);
+          print("DEBUG: Created placeholder for path: $path");
         } catch (e) {
-          print("WARNING: Failed to ensure path exists: $path - $e");
+          // Ignore errors if file already exists
+          print("DEBUG: Path may already exist: $path - $e");
         }
       }
     } catch (e) {
@@ -71,12 +65,14 @@ class StorageService {
 
   // Upload post image with retry mechanism
   Future<String> uploadPostImage(File imageFile, {String? fileName}) async {
-    // Ensure storage paths exist first
+// Before trying to upload, ensure the parent directories exist
     await _ensureStoragePaths();
-    
+
     return _uploadWithRetry(() async {
       print("DEBUG: Starting post image upload");
       String postId = fileName ?? _uuid.v4();
+      // Then proceed with the upload
+      Reference ref = _storage.ref().child('posts/images/$postId.jpg');
       print("DEBUG: Using post ID: $postId");
 
       // Compress image
@@ -90,7 +86,7 @@ class StorageService {
       );
 
       // Using a more direct path structure
-      Reference ref = _storage.ref().child('posts/images/$postId.jpg');
+      // Reference ref = _storage.ref().child('posts/images/$postId.jpg');
       print("DEBUG: Uploading to path: ${ref.fullPath}");
 
       // Verify the path exists

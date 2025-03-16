@@ -22,6 +22,7 @@ class ProfileCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print("Building ProfileCardWidget for ${user.username}");
     return GestureDetector(
       onTap: onProfileTap,
       child: Container(

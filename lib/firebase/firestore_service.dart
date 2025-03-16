@@ -39,8 +39,10 @@ class FirestoreService {
   Future<List<PostModel>> getHomeFeedPosts(String userId) async {
     try {
       // Get current user's following list
-      DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
-      List<dynamic> following = (userDoc.data() as Map<String, dynamic>)['following'] ?? [];
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(userId).get();
+      List<dynamic> following =
+          (userDoc.data() as Map<String, dynamic>)['following'] ?? [];
 
       // If user isn't following anyone, return empty list
       if (following.isEmpty) {
@@ -48,19 +50,18 @@ class FirestoreService {
       }
 
       // Get posts from users the current user follows
-      QuerySnapshot postSnapshot = await _firestore
-          .collection('posts')
-          .where('userId', whereIn: following)
-          .orderBy('timestamp', descending: true)
-          .get();
+      QuerySnapshot postSnapshot =
+          await _firestore
+              .collection('posts')
+              .where('userId', whereIn: following)
+              .orderBy('timestamp', descending: true)
+              .get();
 
-      return postSnapshot.docs
-          .map((doc) {
+      return postSnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['postId'] = doc.id; // Add post ID to the data
         return PostModel.fromMap(data);
-      })
-          .toList();
+      }).toList();
     } catch (e) {
       rethrow;
     }
@@ -69,19 +70,18 @@ class FirestoreService {
   // Get all posts for a specific user
   Future<List<PostModel>> getUserPosts(String userId) async {
     try {
-      QuerySnapshot postSnapshot = await _firestore
-          .collection('posts')
-          .where('userId', isEqualTo: userId)
-          .orderBy('timestamp', descending: true)
-          .get();
+      QuerySnapshot postSnapshot =
+          await _firestore
+              .collection('posts')
+              .where('userId', isEqualTo: userId)
+              .orderBy('timestamp', descending: true)
+              .get();
 
-      return postSnapshot.docs
-          .map((doc) {
+      return postSnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['postId'] = doc.id; // Add post ID to the data
         return PostModel.fromMap(data);
-      })
-          .toList();
+      }).toList();
     } catch (e) {
       rethrow;
     }
@@ -95,8 +95,10 @@ class FirestoreService {
       });
 
       // Get post data to identify post owner
-      DocumentSnapshot postSnapshot = await _firestore.collection('posts').doc(postId).get();
-      String postOwnerId = (postSnapshot.data() as Map<String, dynamic>)['userId'];
+      DocumentSnapshot postSnapshot =
+          await _firestore.collection('posts').doc(postId).get();
+      String postOwnerId =
+          (postSnapshot.data() as Map<String, dynamic>)['userId'];
 
       // Create notification if the user liking is not the post owner
       if (userId != postOwnerId) {
@@ -137,7 +139,8 @@ class FirestoreService {
   // Get a specific user's data
   Future<UserModel?> getUserData(String userId) async {
     try {
-      DocumentSnapshot doc = await _firestore.collection('users').doc(userId).get();
+      DocumentSnapshot doc =
+          await _firestore.collection('users').doc(userId).get();
       if (doc.exists) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['uid'] = doc.id; // Add UID to the data
@@ -149,7 +152,7 @@ class FirestoreService {
     }
   }
 
-//The getPost method fetches a specific post from Firestore using its postId.
+  //The getPost method fetches a specific post from Firestore using its postId.
   Future<PostModel?> getPost(String postId) async {
     try {
       // Fetch the post document from Firestore
@@ -168,7 +171,6 @@ class FirestoreService {
       return null;
     }
   }
-
 
   // Update user profile
   Future<void> updateUserProfile({
@@ -203,8 +205,10 @@ class FirestoreService {
   // Get followers list
   Future<List<UserModel>> getFollowers(String userId) async {
     try {
-      DocumentSnapshot doc = await _firestore.collection('users').doc(userId).get();
-      List<dynamic> followerIds = (doc.data() as Map<String, dynamic>)['followers'] ?? [];
+      DocumentSnapshot doc =
+          await _firestore.collection('users').doc(userId).get();
+      List<dynamic> followerIds =
+          (doc.data() as Map<String, dynamic>)['followers'] ?? [];
 
       List<UserModel> followers = [];
       for (String followerId in followerIds) {
@@ -223,8 +227,10 @@ class FirestoreService {
   // Get following list
   Future<List<UserModel>> getFollowing(String userId) async {
     try {
-      DocumentSnapshot doc = await _firestore.collection('users').doc(userId).get();
-      List<dynamic> followingIds = (doc.data() as Map<String, dynamic>)['following'] ?? [];
+      DocumentSnapshot doc =
+          await _firestore.collection('users').doc(userId).get();
+      List<dynamic> followingIds =
+          (doc.data() as Map<String, dynamic>)['following'] ?? [];
 
       List<UserModel> following = [];
       for (String followingId in followingIds) {
@@ -243,19 +249,18 @@ class FirestoreService {
   // Search for users
   Future<List<UserModel>> searchUsers(String query) async {
     try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('users')
-          .where('username', isGreaterThanOrEqualTo: query)
-          .where('username', isLessThanOrEqualTo: '$query\uf8ff')
-          .get();
+      QuerySnapshot snapshot =
+          await _firestore
+              .collection('users')
+              .where('username', isGreaterThanOrEqualTo: query)
+              .where('username', isLessThanOrEqualTo: '$query\uf8ff')
+              .get();
 
-      return snapshot.docs
-          .map((doc) {
+      return snapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['uid'] = doc.id;
         return UserModel.fromMap(data);
-      })
-          .toList();
+      }).toList();
     } catch (e) {
       rethrow;
     }
@@ -264,7 +269,7 @@ class FirestoreService {
   Future<void> createDefaultUserProfile(String uid) async {
     try {
       print("DEBUG: Starting default user profile creation for uid: $uid");
-      
+
       // Check if user already exists
       final docSnapshot = await _firestore.collection('users').doc(uid).get();
       if (docSnapshot.exists) {
