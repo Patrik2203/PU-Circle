@@ -190,19 +190,19 @@ class AppTheme {
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     primaryColor: AppColors.primary,
-    colorScheme: const ColorScheme.dark(
+    colorScheme: ColorScheme.dark(
       primary: AppColors.primary,
       secondary: AppColors.accent,
-      background: AppColors.darkBackground,
+      background: AppColors.cardBackground,
       error: AppColors.error,
-      surface: Color(0xFF303030),
+      surface: const Color(0xFF303030),
       onPrimary: Colors.white,
       onSecondary: Colors.white,
       onBackground: Colors.white,
       onSurface: Colors.white,
       onError: Colors.white,
     ),
-    scaffoldBackgroundColor: AppColors.darkBackground,
+    scaffoldBackgroundColor: AppColors.cardBackground,
     appBarTheme: const AppBarTheme(
       backgroundColor: Color(0xFF303030),
       foregroundColor: Colors.white,

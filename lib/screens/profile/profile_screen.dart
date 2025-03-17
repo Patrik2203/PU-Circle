@@ -6,6 +6,7 @@ import '../../firebase/firestore_service.dart';
 import '../../models/user_model.dart';
 import '../../models/post_model.dart';
 import '../../utils/colors.dart';
+import '../home/post_detail_screen.dart';
 import 'edit_profile_screen.dart';
 import 'followers_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -183,6 +184,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.background,
         title: const Text('Profile'),
         actions: [
           if (widget.isCurrentUser)
@@ -437,8 +439,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                         final post = posts[index];
                         return GestureDetector(
                           onTap: () {
-                            // Navigate to post detail screen
-                            // TODO: Implement post detail screen navigation
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => PostDetailScreen(
+                                  post: post,
+                                  // postOwner: user,  // Pass the user data as post owner
+                                ),
+                              ),
+                            );
                           },
                           child: Stack(
                             fit: StackFit.expand,

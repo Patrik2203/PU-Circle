@@ -12,13 +12,13 @@ class AppColors {
   static const Color accentDark = Color(0xFFE58E00);
 
   // Background colors
-  static const Color background = Color(0xFFF8F9FA);
-  static const Color cardBackground = Colors.white;
-  static const Color darkBackground = Color(0xFF212121);
-
+  static const Color background = Color(0xFF000000);
+  static const Color cardBackground = Color(0xFF121212);
+  static const Color textPrimary = Color(0xFF000000);
+  static const Color textSecondary = Color(0xFF9E9E9E);
   // Text colors
-  static const Color textPrimary = Color(0xFF212121);
-  static const Color textSecondary = Color(0xFF757575);
+  // static const Color textPrimary = Color(0xFF212121);
+  // static const Color textSecondary = Color(0xFF757575);
   static const Color textLight = Color(0xFFBDBDBD);
   static const Color textOnPrimary = Colors.white;
   static const Color textOnAccent = Colors.white;

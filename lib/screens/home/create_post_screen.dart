@@ -202,7 +202,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       print("ERROR: Post creation failed");
       print("Error details: $e");
       print("Stack trace: $stackTrace");
-      
+
       if (mounted) {
         String errorMessage = 'Failed to create post. ';
         if (e.toString().contains('storage/object-not-found')) {
@@ -212,7 +212,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         } else {
           errorMessage += 'Please try again. Error: ${e.toString()}';
         }
-        
+
         AppHelpers.showSnackBar(context, errorMessage);
       }
     } finally {
@@ -228,6 +228,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.background,
         title: const Text('Create Post'),
         actions: [
           TextButton(

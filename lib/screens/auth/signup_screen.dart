@@ -148,7 +148,7 @@ class _SignupScreenState extends State<SignupScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Account'),
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.background,
       ),
       body: SafeArea(
         child: SingleChildScrollView(

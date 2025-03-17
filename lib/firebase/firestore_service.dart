@@ -127,6 +127,30 @@ class FirestoreService {
     }
   }
 
+  // To toogle like unlike
+  Future<PostModel?> togglePostLike(PostModel post, String userId) async {
+    try {
+      final bool isCurrentlyLiked = post.likes.contains(userId);
+
+      // Perform the like/unlike operation
+      if (isCurrentlyLiked) {
+        await _firestore.collection('posts').doc(post.postId).update({
+          'likes': FieldValue.arrayRemove([userId])
+        });
+      } else {
+        await _firestore.collection('posts').doc(post.postId).update({
+          'likes': FieldValue.arrayUnion([userId])
+        });
+      }
+
+      // Return updated post
+      return await getPost(post.postId);
+    } catch (e) {
+      print('Error toggling post like: $e');
+      throw e;
+    }
+  }
+
   // Delete a post
   Future<void> deletePost(String postId) async {
     try {

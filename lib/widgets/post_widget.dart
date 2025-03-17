@@ -69,34 +69,35 @@ class _PostWidgetState extends State<PostWidget>
   }
 
   Future<void> _toggleLike() async {
-    final currentUserId = await _firestoreService.currentUserId!;
+    try {
+      final currentUserId = await _firestoreService.currentUserId!;
 
-    if (_isLiked) {
-      // Unlike post
-      await _firestoreService.unlikePost(widget.post.userId, currentUserId);
-      if (mounted) {
-        setState(() {
-          _isLiked = false;
-          _likeCount--;
-        });
-      }
-    } else {
-      // Like post
-      await _firestoreService.likePost(widget.post.userId, currentUserId);
-      if (mounted) {
-        setState(() {
-          _isLiked = true;
+      // Update UI immediately for better UX
+      setState(() {
+        if (!_isLiked) {
           _likeCount++;
           _likeAnimationController
               .forward()
               .then((_) => _likeAnimationController.reverse());
-        });
-      }
-    }
+        } else {
+          _likeCount--;
+        }
+        _isLiked = !_isLiked;
+      });
 
-    // Refresh parent if needed
-    if (widget.onRefresh != null) {
-      widget.onRefresh!();
+      // Call service method to update in Firestore
+      await _firestoreService.togglePostLike(widget.post, currentUserId);
+
+      // Call callback to refresh parent screen if needed
+      if (widget.onRefresh != null) {
+        widget.onRefresh!();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating like: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -125,6 +126,7 @@ class _PostWidgetState extends State<PostWidget>
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: AppColors.cardBackground,
       margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 0),
       elevation: 1.0,
       shape: RoundedRectangleBorder(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:pu_circle/screens/admin/user_management.dart';
+import 'package:pu_circle/screens/auth/login_screen.dart'; // Import the login screen directly
 import 'package:pu_circle/screens/home/search_screen.dart';
 import '../../firebase/auth_service.dart';
 import '../../firebase/firestore_service.dart';
@@ -31,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   UserModel? _currentUser;
   bool _isLoading = true;
   List<PostModel> _posts = [];
+  bool _isLoggingOut = false;
 
   @override
   void initState() {
@@ -48,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (currentUserId == null) {
         print("DEBUG: No current user found");
         if (mounted) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+          _navigateToLogin();
         }
         return;
       }
@@ -58,9 +61,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (userData == null) {
         print("DEBUG: No user data found for $currentUserId");
-        // Create default profile logic
-        // await _authService.createDefaultUserProfile(currentUserId);
-
         final retryData = await _authService.getUserData(currentUserId);
         if (retryData == null) {
           print("DEBUG: Failed to create user profile");
@@ -76,11 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       print("DEBUG: Full error in _loadUserData: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        showCustomSnackBar(
+            context,
+            message: 'Error loading data: ${e.toString()}',
+            isError: true
         );
       }
     } finally {
@@ -92,7 +91,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-
+  void _navigateToLogin() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+    );
+  }
 
   Future<void> _loadPosts() async {
     if (_currentUser == null) return;
@@ -119,9 +123,15 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       print("Error loading posts: $e");
+      if (mounted) {
+        showCustomSnackBar(
+            context,
+            message: 'Error loading posts: ${e.toString()}',
+            isError: true
+        );
+      }
     }
   }
-
 
   Future<void> _refreshData() async {
     await _loadPosts();
@@ -137,52 +147,56 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _handleLogout() async {
+    // Prevent double-tapping the logout button
+    if (_isLoggingOut) return;
+
+    setState(() {
+      _isLoggingOut = true;
+    });
+
+    try {
+      await _authService.logout();
+      if (!mounted) return;
+      _navigateToLogin();
+    } catch (e) {
+      if (!mounted) return;
+      showCustomSnackBar(
+          context,
+          message: 'Error logging out: ${e.toString()}',
+          isError: true
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoggingOut = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildEmptyPostsView() {
+    return EmptyStateWidget(
+      message: 'No posts yet. Follow more users or create a post to see content here.',
+      icon: Icons.sentiment_dissatisfied,
+      actionText: 'Create Post',
+      onAction: _navigateToCreatePost,
+    );
+  }
+
   Widget _buildBody() {
     if (_isLoading) {
-      return Center(
-        child: LoadingAnimationWidget.staggeredDotsWave(
-          color: AppColors.primary,
-          size: 40,
-        ),
-      );
+      return const LoadingSpinner(text: 'Loading posts...');
     }
 
     if (_posts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.sentiment_dissatisfied,
-              size: 80,
-              color: AppColors.textSecondary,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No posts yet',
-              style: TextStyle(
-                fontSize: 20,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Follow more users or create a post to see content here',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _navigateToCreatePost,
-              child: const Text('Create Post'),
-            ),
-          ],
-        ),
-      );
+      return _buildEmptyPostsView();
     }
 
     return RefreshIndicator(
       onRefresh: _refreshData,
+      color: AppColors.primary,
+      backgroundColor: AppColors.cardBackground,
       child: ListView.builder(
         itemCount: _posts.length,
         itemBuilder: (context, index) {
@@ -200,12 +214,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
+
     // Add null check for _currentUser
     if (_currentUser == null) {
       return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: LoadingSpinner(text: 'Loading user data...'),
       );
     }
 
@@ -218,58 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return Scaffold(
-      appBar: _currentIndex == 0 ? AppBar(
-        title: const Text(
-          'PU Circle',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SearchScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              try {
-                await _authService.logout();
-                if (!mounted) return;
-
-                // Navigate back to login screen
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/login',
-                  (route) => false,
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error logging out: ${e.toString()}')),
-                );
-              }
-            },
-          ),
-        ],
-      ) : null,
+      appBar: _currentIndex == 0 ? _buildAppBar() : null,
       body: _screens[_currentIndex] == const SizedBox()
           ? _screens[0] // Show home screen if FAB placeholder is selected
           : _screens[_currentIndex],
@@ -292,6 +261,9 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         },
         type: BottomNavigationBarType.fixed,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: Colors.grey,
+        backgroundColor: Colors.black,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
@@ -320,6 +292,51 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return CustomAppBar(
+      title: 'PU Circle',
+      showBackButton: false,
+      backgroundColor: Colors.black,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search, color: AppColors.primary),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SearchScreen(),
+              ),
+            );
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NotificationScreen(),
+              ),
+            );
+          },
+        ),
+        IconButton(
+          icon: _isLoggingOut
+              ? SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          )
+              : const Icon(Icons.logout, color: AppColors.primary),
+          onPressed: _isLoggingOut ? null : _handleLogout,
+        ),
+      ],
     );
   }
 

@@ -14,17 +14,15 @@ class PostDetailScreen extends StatefulWidget {
   final PostModel post;
   final Function? onPostUpdated;
 
-  const PostDetailScreen({
-    Key? key,
-    required this.post,
-    this.onPostUpdated,
-  }) : super(key: key);
+  const PostDetailScreen({Key? key, required this.post, this.onPostUpdated})
+    : super(key: key);
 
   @override
   _PostDetailScreenState createState() => _PostDetailScreenState();
 }
 
-class _PostDetailScreenState extends State<PostDetailScreen> {
+class _PostDetailScreenState extends State<PostDetailScreen>
+    with SingleTickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
 
@@ -34,17 +32,33 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   bool _isLiked = false;
   String _currentUserId = '';
   VideoPlayerController? _videoController;
+  late AnimationController _likeAnimationController;
+  late Animation<double> _likeAnimation;
 
   @override
   void initState() {
     super.initState();
     _post = widget.post;
+
+    // Setup like animation
+    _likeAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _likeAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
+      CurvedAnimation(
+        parent: _likeAnimationController,
+        curve: Curves.elasticOut,
+      ),
+    );
+
     _loadData();
   }
 
   @override
   void dispose() {
     _videoController?.dispose();
+    _likeAnimationController.dispose();
     super.dispose();
   }
 
@@ -74,8 +88,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       _isLiked = _post.likes.contains(_currentUserId);
 
       // Initialize video player if post is video
-      if (_post.isVideo) {
-        _videoController = VideoPlayerController.network(_post.mediaUrl)
+      if (_post.isVideo && _post.mediaUrl.isNotEmpty) {
+        _videoController = VideoPlayerController.networkUrl(
+            Uri.parse(_post.mediaUrl),
+          )
           ..initialize().then((_) {
             if (mounted) {
               setState(() {});
@@ -98,6 +114,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Future<void> _toggleLike() async {
     try {
       final bool newLikeStatus = !_isLiked;
+
+      // Animate like button
+      if (newLikeStatus) {
+        _likeAnimationController.forward().then(
+          (_) => _likeAnimationController.reverse(),
+        );
+      }
 
       // Update UI immediately for better UX
       setState(() {
@@ -129,7 +152,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       widget.onPostUpdated?.call();
     } catch (e) {
       if (mounted) {
-        AppHelpers.showSnackBar(context, 'Error updating like: ${e.toString()}');
+        AppHelpers.showSnackBar(
+          context,
+          'Error updating like: ${e.toString()}',
+        );
       }
     }
   }
@@ -148,7 +174,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        AppHelpers.showSnackBar(context, 'Error deleting post: ${e.toString()}');
+        AppHelpers.showSnackBar(
+          context,
+          'Error deleting post: ${e.toString()}',
+        );
       }
     }
   }
@@ -156,26 +185,27 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   void _showDeleteConfirmation() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Post'),
-        content: const Text('Are you sure you want to delete this post?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Post'),
+            content: const Text('Are you sure you want to delete this post?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _deletePost();
+                },
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deletePost();
-            },
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -192,51 +222,151 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               }
             });
           },
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              AspectRatio(
-                aspectRatio: _videoController!.value.aspectRatio,
-                child: VideoPlayer(_videoController!),
-              ),
-              if (!_videoController!.value.isPlaying)
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.play_arrow,
-                    color: Colors.white,
-                    size: 40,
-                  ),
+          child: Card(
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(0),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                AspectRatio(
+                  aspectRatio: _videoController!.value.aspectRatio,
+                  child: VideoPlayer(_videoController!),
                 ),
-            ],
+                if (!_videoController!.value.isPlaying)
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.play_arrow,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
       } else {
-        return const Center(
-          child: CircularProgressIndicator(),
+        return const SizedBox(
+          height: 300,
+          child: Center(child: CircularProgressIndicator()),
         );
       }
     } else {
-      return Image.network(
-        _post.mediaUrl,
-        width: double.infinity,
-        fit: BoxFit.cover,
-      );
+      return _post.mediaUrl.isNotEmpty
+          ? Container(
+            constraints: const BoxConstraints(maxHeight: 500),
+            width: double.infinity,
+            child: Image.network(
+              _post.mediaUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.broken_image,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Image not available',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return SizedBox(
+                  height: 300,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      value:
+                          loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                    ),
+                  ),
+                );
+              },
+            ),
+          )
+          : const SizedBox();
     }
   }
+
+  Widget _buildDoubleTapLikeOverlay() {
+    return GestureDetector(
+      onDoubleTap: () {
+        if (!_isLiked) {
+          _toggleLike();
+        }
+        // Show heart animation on double tap
+        setState(() {
+          _showHeartOverlay = true;
+        });
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted) {
+            setState(() {
+              _showHeartOverlay = false;
+            });
+          }
+        });
+      },
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          _buildMediaContent(),
+          if (_showHeartOverlay)
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 400),
+              builder: (context, value, child) {
+                return Opacity(
+                  opacity: value > 0.8 ? 2 - value * 2 : value,
+                  child: Transform.scale(
+                    scale: value,
+                    child: Icon(
+                      Icons.favorite,
+                      color: Colors.white,
+                      size: 100,
+                      shadows: const [
+                        Shadow(
+                          color: Colors.black38,
+                          blurRadius: 20,
+                          offset: Offset(0, 0),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  bool _showHeartOverlay = false;
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Post'),
-        ),
+        appBar: AppBar(title: const Text('Post'), elevation: 0),
         body: Center(
           child: LoadingAnimationWidget.staggeredDotsWave(
             color: AppColors.primary,
@@ -248,18 +378,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     if (_postUser == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Post'),
-        ),
-        body: const Center(
-          child: Text('Error loading post data'),
-        ),
+        appBar: AppBar(title: const Text('Post'), elevation: 0),
+        body: const Center(child: Text('Error loading post data')),
       );
     }
 
     return Scaffold(
+      backgroundColor:
+          Theme.of(context).brightness == Brightness.dark
+              ? Colors.black
+              : Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Post'),
+        title: Text(
+          _postUser!.username,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: false,
+        elevation: 0,
         actions: [
           if (_post.userId == _currentUserId)
             IconButton(
@@ -269,98 +404,158 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ],
       ),
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Post header with user info
-            ListTile(
-              leading: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ProfileScreen(
-                        userId: _postUser!.uid,
-                      ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  ProfileScreen(userId: _postUser!.uid),
+                        ),
+                      );
+                    },
+                    child: CircleAvatar(
+                      radius: 22,
+                      backgroundColor: AppColors.primary.withOpacity(0.2),
+                      backgroundImage:
+                          _postUser!.profileImageUrl != null &&
+                                  _postUser!.profileImageUrl!.isNotEmpty
+                              ? NetworkImage(_postUser!.profileImageUrl!)
+                              : null,
+                      child:
+                          _postUser!.profileImageUrl == null ||
+                                  _postUser!.profileImageUrl!.isEmpty
+                              ? const Icon(Icons.person)
+                              : null,
                     ),
-                  );
-                },
-                child: CircleAvatar(
-                  backgroundImage: _postUser!.profileImageUrl != null
-                      ? NetworkImage(_postUser!.profileImageUrl!)
-                      : null,
-                  child: _postUser!.profileImageUrl == null
-                      ? const Icon(Icons.person)
-                      : null,
-                ),
-              ),
-              title: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ProfileScreen(
-                        userId: _postUser!.uid,
-                      ),
-                    ),
-                  );
-                },
-                child: Text(
-                  _postUser!.username,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
                   ),
-                ),
-              ),
-              subtitle: Text(
-                timeago.format(_post.createdAt),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) =>
+                                      ProfileScreen(userId: _postUser!.uid),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          _postUser!.username,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        timeago.format(_post.createdAt),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
 
             // Post media content
-            _buildMediaContent(),
-
-            // Post actions (like button)
-            Row(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    _isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: _isLiked ? AppColors.like : null,
-                  ),
-                  onPressed: _toggleLike,
-                ),
-                Text(
-                  '${_post.likes.length} likes',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+            if (_post.mediaUrl.isNotEmpty) _buildDoubleTapLikeOverlay(),
 
             // Post caption
             if (_post.caption.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: RichText(
-                  text: TextSpan(
-                    style: DefaultTextStyle.of(context).style,
-                    children: [
-                      TextSpan(
-                        text: '${_postUser!.username} ',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      TextSpan(
-                        text: _post.caption,
-                      ),
-                    ],
-                  ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Text(
+                  _post.caption,
+                  style: const TextStyle(fontSize: 15),
                 ),
               ),
 
+            // Engagement buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  ScaleTransition(
+                    scale: _likeAnimation,
+                    child: IconButton(
+                      onPressed: _toggleLike,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: Icon(
+                        _isLiked ? Icons.favorite : Icons.favorite_border,
+                        color: _isLiked ? Colors.red : null,
+                        size: 26,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    onPressed: () {
+                      AppHelpers.showSnackBar(context, 'Comment coming soon');
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.chat_bubble_outline, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    onPressed: () {
+                      AppHelpers.showSnackBar(context, 'Share Post coming soon');
+                      // Share post
+                      // AppHelpers.shareContent(_post.caption, _post.mediaUrl);
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.send, size: 24),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () {
+                      // Save post
+                      AppHelpers.showSnackBar(context, 'Save Post coming soon');
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.bookmark_border, size: 26),
+                  ),
+                ],
+              ),
+            ),
+
+            // Like count
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                '${_post.likes.length} ${_post.likes.length == 1 ? 'like' : 'likes'}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+
+            // Comments section
+            // _buildCommentSection(),
+
+            // Bottom spacing
             const SizedBox(height: 16),
           ],
         ),
