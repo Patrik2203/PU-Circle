@@ -211,4 +211,44 @@ class MatchService {
       rethrow;
     }
   }
+
+  // Add this method to get users who have liked the current user
+  Future<List<String>> getPendingMatchRequests(String userId) async {
+    print('nnnnnkhvjbkvvvvv bvvjbvhjbvjkvbkj');
+    try {
+      // Get all users who have liked the current user
+      QuerySnapshot likedBySnapshot = await _firestore
+          .collection('likes')
+          .where('likedId', isEqualTo: userId)
+          .get();
+
+      // Extract userIds who have liked this user
+      List<String> likedByUserIds = likedBySnapshot.docs
+          .map((doc) => (doc.data() as Map<String, dynamic>)['userId'] as String)
+          .toList();
+
+      // Filter out users who are already matched
+      List<String> pendingUserIds = [];
+      for (String likedByUserId in likedByUserIds) {
+        // Check if this user has already matched with the liked user
+        QuerySnapshot matchCheck = await _firestore
+            .collection('matches')
+            .where('userId1', whereIn: [userId, likedByUserId])
+            .where('userId2', whereIn: [userId, likedByUserId])
+            .get();
+
+        // If no match exists, add to pending list
+        if (matchCheck.docs.isEmpty) {
+          pendingUserIds.add(likedByUserId);
+        }
+      }
+
+      print('nnnnnkhvjbkvvvvv bvvjbvhjbvjkvbkj');
+
+      return pendingUserIds;
+    } catch (e) {
+      // print('nnnnnkhvjbkvvvvv bvvjbvhjbvjkvbkj');
+      rethrow;
+    }
+  }
 }

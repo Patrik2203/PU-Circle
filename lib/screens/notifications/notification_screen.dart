@@ -270,6 +270,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     String? userId = _auth.currentUser?.uid;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [

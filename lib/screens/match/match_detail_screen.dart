@@ -41,19 +41,9 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
       final currentUserId = _auth.currentUser!.uid;
       final otherUserId = widget.matchedUser.uid;
 
-      // Find the chat room between these two users
-      final querySnapshot = await _firestore
-          .collection('chats')
-          .where('participants', arrayContains: currentUserId)
-          .get();
-
-      for (var doc in querySnapshot.docs) {
-        final participants = List<String>.from(doc.data()['participants']);
-        if (participants.contains(otherUserId)) {
-          _chatRoomId = doc.id;
-          break;
-        }
-      }
+      // Use the consistent method from MessagingService to get or create a chat ID
+      final messagingService = MessagingService();
+      _chatRoomId = await messagingService.getChatIdForUsers(currentUserId, otherUserId);
 
       setState(() {
         _isLoading = false;

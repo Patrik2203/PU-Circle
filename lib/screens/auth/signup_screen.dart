@@ -31,7 +31,8 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _isLoading = false;
   File? _image;
   String _selectedGender = 'male';
-  bool _isSingle = false;
+  bool _isSingle = true;
+  Color scaffoldBackgroundColor = AppColors.background;
 
   Future<void> _selectImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
@@ -68,7 +69,9 @@ class _SignupScreenState extends State<SignupScreen> {
         print("DEBUG: Profile image uploaded: $profileImageUrl");
       }
 
-      print("DEBUG: Creating user with Email: ${_emailController.text.trim()}, Username: ${_usernameController.text.trim()}, Gender: $_selectedGender");
+      print(
+        "DEBUG: Creating user with Email: ${_emailController.text.trim()}, Username: ${_usernameController.text.trim()}, Gender: $_selectedGender",
+      );
 
       // Create user with email and password
       UserCredential userCredential = await _authService.signUp(
@@ -87,7 +90,9 @@ class _SignupScreenState extends State<SignupScreen> {
       await Future.delayed(Duration(seconds: 2));
 
       // Check if user was created in Firestore
-      bool userExists = await _authService.userExistsInFirestore(userCredential.user!.uid);
+      bool userExists = await _authService.userExistsInFirestore(
+        userCredential.user!.uid,
+      );
       print("DEBUG: User exists in Firestore: $userExists");
 
       if (!userExists) {
@@ -97,16 +102,11 @@ class _SignupScreenState extends State<SignupScreen> {
 
       if (!mounted) return;
 
-      AppHelpers.showSnackBar(
-        context,
-        'Account created successfully!',
-      );
+      AppHelpers.showSnackBar(context, 'Account created successfully!');
 
       // Navigate back to login screen
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const LoginScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
     } catch (e) {
       print("DEBUG: Signup error: $e");
@@ -146,9 +146,11 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Create Account'),
-        backgroundColor: AppColors.background,
+        backgroundColor: scaffoldBackgroundColor,
+        // backgroundColor: AppColors.background,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -161,18 +163,18 @@ class _SignupScreenState extends State<SignupScreen> {
                 children: [
                   _image != null
                       ? CircleAvatar(
-                    radius: 64,
-                    backgroundImage: FileImage(_image!),
-                  )
+                        radius: 64,
+                        backgroundImage: FileImage(_image!),
+                      )
                       : const CircleAvatar(
-                    radius: 64,
-                    backgroundColor: AppColors.textLight,
-                    child: Icon(
-                      Icons.person,
-                      size: 64,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
+                        radius: 64,
+                        backgroundColor: AppColors.textLight,
+                        child: Icon(
+                          Icons.person,
+                          size: 64,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                   Positioned(
                     bottom: 0,
                     right: 0,
@@ -266,21 +268,51 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 16),
 
               // Single Status Selection
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Single: ', style: TextStyle(fontSize: 16)),
-                  Switch(
-                    value: _isSingle,
-                    activeColor: AppColors.accentDark,
-                    onChanged: (value) {
-                      setState(() {
-                        _isSingle = value;
-                      });
-                    },
+                  const Text(
+                    'Relationship Status',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
-                  const Text('(Not shown publicly)'),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Single',
+                        style: TextStyle(
+                          color: _isSingle ? AppColors.primary : Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Switch(
+                        value: !_isSingle,
+                        activeColor: AppColors.match,
+                        onChanged: (value) {
+                          setState(() {
+                            _isSingle = !value;
+                            // Change background color based on relationship status
+                            scaffoldBackgroundColor =
+                                _isSingle
+                                    ? AppColors.background
+                                    : AppColors.match.withAlpha(43);
+                          });
+                        },
+                      ),
+                      Text(
+                        'In a Relationship',
+                        style: TextStyle(
+                          color: !_isSingle ? AppColors.match : Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
+
               const SizedBox(height: 24),
 
               // Signup Button
@@ -292,20 +324,21 @@ class _SignupScreenState extends State<SignupScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: const BoxDecoration(
                     borderRadius: BorderRadius.all(Radius.circular(4)),
-                    gradient: AppColors.primaryGradient,  // Apply gradient,
+                    gradient: AppColors.primaryGradient, // Apply gradient,
                   ),
-                  child: _isLoading
-                      ? LoadingAnimationWidget.staggeredDotsWave(
-                    color: AppColors.textOnPrimary,
-                    size: 24,
-                  )
-                      : const Text(
-                    'Sign up',
-                    style: TextStyle(
-                      color: AppColors.textOnPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child:
+                      _isLoading
+                          ? LoadingAnimationWidget.staggeredDotsWave(
+                            color: AppColors.textOnPrimary,
+                            size: 24,
+                          )
+                          : const Text(
+                            'Sign up',
+                            style: TextStyle(
+                              color: AppColors.textOnPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                 ),
               ),
               const SizedBox(height: 12),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pu_circle/utils/colors.dart';
 import '../../firebase/firestore_service.dart';
 import '../../firebase/auth_service.dart';
 import '../../models/user_model.dart';
@@ -68,6 +69,7 @@ class _FollowersScreenState extends State<FollowersScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isFollowers ? 'Followers' : 'Following'),
+        backgroundColor: AppColors.background,
       ),
       body: FutureBuilder<List<UserModel>>(
         future: _usersFuture,

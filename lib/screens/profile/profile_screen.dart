@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../firebase/auth_service.dart';
 import '../../firebase/firestore_service.dart';
+import '../../firebase/messaging_service.dart';
 import '../../models/user_model.dart';
 import '../../models/post_model.dart';
 import '../../utils/colors.dart';
 import '../home/post_detail_screen.dart';
+import '../messaging/chat_screen.dart';
 import 'edit_profile_screen.dart';
 import 'followers_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -43,7 +43,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _isCurrentUser = widget.isCurrentUser || widget.userId == _authService.currentUser?.uid;
+    _isCurrentUser =
+        widget.isCurrentUser || widget.userId == _authService.currentUser?.uid;
     _loadUserData();
   }
 
@@ -76,6 +77,31 @@ class _ProfileScreenState extends State<ProfileScreen>
         });
       }
     });
+  }
+
+  void _navigateToChat(UserModel otherUser) async {
+    final currentUserId = _authService.currentUser!.uid;
+
+    // Import the MessagingService at the top of the file
+    final messagingService = MessagingService();
+
+    // Get or create chat ID for these two users
+    final chatId = await messagingService.getChatIdForUsers(
+        currentUserId,
+        otherUser.uid
+    );
+
+    if (chatId != null && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            chatId: chatId,
+            otherUser: otherUser,
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _handleFollow() async {
@@ -357,34 +383,50 @@ class _ProfileScreenState extends State<ProfileScreen>
                         // Edit profile / follow button
                         SizedBox(
                           width: double.infinity,
-                          child:
-                              _isCurrentUser
-                                  ? OutlinedButton(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) =>
-                                                  EditProfileScreen(user: user),
-                                        ),
-                                      ).then((_) => _loadUserData());
-                                    },
-                                    child: const Text('Edit Profile'),
-                                  )
-                                  : ElevatedButton(
-                                    onPressed: _handleFollow,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          _isFollowing
-                                              ? Colors.grey
-                                              : Theme.of(context).primaryColor,
-                                    ),
-                                    child: Text(
-                                      _isFollowing ? 'Unfollow' : 'Follow',
-                                    ),
+                          child: _isCurrentUser
+                              ? OutlinedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => EditProfileScreen(user: user),
+                                ),
+                              ).then((_) => _loadUserData());
+                            },
+                            child: const Text('Edit Profile'),
+                          )
+                              : _isFollowing
+                              ? Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: _handleFollow,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.grey,
                                   ),
-                        ),
+                                  child: const Text('Unfollow'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () => _navigateToChat(user),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Theme.of(context).primaryColor,
+                                  ),
+                                  child: const Text('Message'),
+                                ),
+                              ),
+                            ],
+                          )
+                              : ElevatedButton(
+                            onPressed: _handleFollow,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                            ),
+                            child: const Text('Follow'),
+                          ),
+                        )
                       ],
                     ),
                   ),
@@ -441,10 +483,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) => PostDetailScreen(
-                                  post: post,
-                                  // postOwner: user,  // Pass the user data as post owner
-                                ),
+                                builder:
+                                    (context) => PostDetailScreen(
+                                      post: post,
+                                      // postOwner: user,  // Pass the user data as post owner
+                                    ),
                               ),
                             );
                           },

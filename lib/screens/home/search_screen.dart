@@ -100,6 +100,7 @@ class _SearchScreenState extends State<SearchScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        backgroundColor: AppColors.background,
       ),
       body: Column(
         children: [
