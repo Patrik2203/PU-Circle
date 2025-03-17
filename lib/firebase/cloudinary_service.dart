@@ -105,7 +105,7 @@ class CloudinaryService {
       // Generate and upload thumbnail
       try {
         print("DEBUG: Generating video thumbnail");
-        File? thumbnailFile = await _generateVideoThumbnail(videoFile);
+        File? thumbnailFile = await _generateVideoThumbnail(compressedFile);
         if (thumbnailFile != null) {
           await cloudinary.uploadFile(
             CloudinaryFile.fromFile(

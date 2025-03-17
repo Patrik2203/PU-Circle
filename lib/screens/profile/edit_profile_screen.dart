@@ -23,7 +23,7 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final FirestoreService _firestoreService = FirestoreService();
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  // final FirebaseStorage _storage = FirebaseStorage.instance;
   final CloudinaryService _cloudinaryService = CloudinaryService();
   final ImagePicker _picker = ImagePicker();
 
@@ -75,12 +75,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       final String fileName = 'profile_${widget.user.uid}_${DateTime.now().millisecondsSinceEpoch}';
-      final Reference storageRef = _storage.ref().child('profile_images/$fileName');
-
-      final UploadTask uploadTask = storageRef.putFile(_imageFile!);
-      final TaskSnapshot taskSnapshot = await uploadTask;
-
-      return await taskSnapshot.ref.getDownloadURL();
+      return await _cloudinaryService.uploadProfileImage(_imageFile!, fileName);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error uploading image: ${e.toString()}')),
