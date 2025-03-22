@@ -4,8 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
-
-// Import your screens
+import 'controllers/match_controller.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'firebase/auth_service.dart';
@@ -26,15 +25,15 @@ void main() async {
       ),
     );
 
-    print("DEBUG: Firebase core initialized");
+    // print("DEBUG: Firebase core initialized");
 
     // Initialize App Check with more specific error handling
     try {
       await FirebaseAppCheck.instance.activate(
-        androidProvider: AndroidProvider.debug,
+        androidProvider: AndroidProvider.playIntegrity,
         appleProvider: AppleProvider.debug,
       );
-      print("DEBUG: App Check activated successfully");
+      // print("DEBUG: App Check activated successfully");
     } catch (appCheckError) {
       print("DEBUG: App Check activation error: $appCheckError");
       // Continue anyway as this might be an emulator issue
@@ -60,6 +59,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => MatchController()),
         Provider<AuthService>(
           create: (_) => AuthService(),
         ),
@@ -71,10 +71,15 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'PU Circle',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
+        theme: AppTheme.darkTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.system,
         home: const AuthenticationWrapper(),
+        // builder: (context, child) {
+        //   // Update colors based on current theme
+        //   AppTheme.updateColorsForTheme(context);
+        //   return child!;
+        // },
       ),
     );
   }

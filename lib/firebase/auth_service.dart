@@ -44,8 +44,7 @@ class AuthService {
     }
 
     try {
-      print("DEBUG: Starting user creation in Firebase Auth");
-      
+
       // Create user with email and password first
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -56,14 +55,14 @@ class AuthService {
         throw AuthException('auth-error', 'Failed to create user account.');
       }
 
-      print("DEBUG: User created in Authentication: ${userCredential.user!.uid}");
+      // print("DEBUG: User created in Authentication: ${userCredential.user!.uid}");
 
       try {
         // First create the default profile
-        print("DEBUG: Creating default user profile");
+        // print("DEBUG: Creating default user profile");
         await _firestoreService.createDefaultUserProfile(userCredential.user!.uid);
         
-        print("DEBUG: Updating user profile with provided information");
+        // print("DEBUG: Updating user profile with provided information");
         // Then update with user-provided information
         Map<String, dynamic> updateData = {
           'email': email,
@@ -85,29 +84,29 @@ class AuthService {
             .doc(userCredential.user!.uid)
             .update(updateData);
 
-        print("DEBUG: User profile updated successfully");
+        // print("DEBUG: User profile updated successfully");
         return userCredential;
       } catch (firestoreError) {
-        print("DEBUG: Firestore Error: $firestoreError");
-        print("DEBUG: Firestore Error Type: ${firestoreError.runtimeType}");
+        // print("DEBUG: Firestore Error: $firestoreError");
+        // print("DEBUG: Firestore Error Type: ${firestoreError.runtimeType}");
         
         // Clean up: delete the auth user since document creation failed
         try {
           await userCredential.user!.delete();
-          print("DEBUG: Auth user deleted after Firestore error");
+          // print("DEBUG: Auth user deleted after Firestore error");
         } catch (deleteError) {
-          print("DEBUG: Error deleting auth user: $deleteError");
+          // print("DEBUG: Error deleting auth user: $deleteError");
         }
         
         throw AuthException('firestore-error', 'Failed to create user profile: ${firestoreError.toString()}');
       }
     } catch (e) {
-      print("DEBUG: Error in signUp function: $e");
-      print("DEBUG: Error type: ${e.runtimeType}");
+      // print("DEBUG: Error in signUp function: $e");
+      // print("DEBUG: Error type: ${e.runtimeType}");
       
       if (e is FirebaseAuthException) {
-        print("DEBUG: Firebase Auth Error Code: ${e.code}");
-        print("DEBUG: Firebase Auth Error Message: ${e.message}");
+        // print("DEBUG: Firebase Auth Error Code: ${e.code}");
+        // print("DEBUG: Firebase Auth Error Message: ${e.message}");
       }
       
       throw _handleException(e);
@@ -120,7 +119,7 @@ class AuthService {
       DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
       return doc.exists;
     } catch (e) {
-      print("Error checking if user exists: $e");
+      // print("Error checking if user exists: $e");
       return false;
     }
   }
@@ -189,12 +188,12 @@ class AuthService {
   // Get user data
   Future<UserModel?> getUserData(String uid) async {
     try {
-      print("DEBUG: Attempting to get user data for $uid");
+      // print("DEBUG: Attempting to get user data for $uid");
       DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
 
       if (doc.exists && doc.data() != null) {
         Map<String, dynamic> userData = doc.data() as Map<String, dynamic>;
-        print("DEBUG: Raw user data: $userData"); // Debug print
+        // print("DEBUG: Raw user data: $userData"); // Debug print
 
         // Create a UserModel with safe type casting
         UserModel user = UserModel(
@@ -213,15 +212,15 @@ class AuthService {
             (userData['createdAt'] as Timestamp).toDate() : DateTime.now(),
         );
 
-        print("DEBUG: User data found for $uid");
+        // print("DEBUG: User data found for $uid");
         return user;
       }
 
-      print("DEBUG: No user data found for $uid");
+      // print("DEBUG: No user data found for $uid");
       return null;
     } catch (e) {
-      print("DEBUG: Error getting user data: $e");
-      print("DEBUG: Error type: ${e.runtimeType}");
+      // print("DEBUG: Error getting user data: $e");
+      // print("DEBUG: Error type: ${e.runtimeType}");
       return null;
     }
   }

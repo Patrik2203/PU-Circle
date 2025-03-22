@@ -61,7 +61,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading chats: $e');
       setState(() {
         _isLoading = false;
       });

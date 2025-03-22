@@ -36,26 +36,36 @@ class FirestoreService {
   }
 
   // Get posts for home feed (posts from users you follow)
-  Future<List<PostModel>> getHomeFeedPosts(String userId) async {
+// Modify the getHomeFeedPosts method to support pagination
+  Future<List<PostModel>> getHomeFeedPosts(
+      String userId, {
+        DocumentSnapshot? lastDocument,
+        int limit = 15,
+      }) async {
     try {
       // Get current user's following list
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(userId).get();
-      List<dynamic> following =
-          (userDoc.data() as Map<String, dynamic>)['following'] ?? [];
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
+      List<dynamic> following = (userDoc.data() as Map<String, dynamic>)['following'] ?? [];
 
       // If user isn't following anyone, return empty list
       if (following.isEmpty) {
         return [];
       }
 
-      // Get posts from users the current user follows
-      QuerySnapshot postSnapshot =
-          await _firestore
-              .collection('posts')
-              .where('userId', whereIn: following)
-              .orderBy('timestamp', descending: true)
-              .get();
+      // Create query for posts from users the current user follows
+      Query query = _firestore
+          .collection('posts')
+          .where('userId', whereIn: following)
+          .orderBy('timestamp', descending: true)
+          .limit(limit);
+
+      // If we have a last document, start after it
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+
+      // Execute the query
+      QuerySnapshot postSnapshot = await query.get();
 
       return postSnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -64,6 +74,63 @@ class FirestoreService {
       }).toList();
     } catch (e) {
       rethrow;
+    }
+  }
+
+// Add a new method to get random posts
+  Future<List<PostModel>> getRandomPosts({
+    DocumentSnapshot? lastDocument,
+    List<String>? excludePostIds,
+    int limit = 15,
+  }) async {
+    try {
+      // Start with a base query
+      Query query = _firestore
+          .collection('posts')
+          .orderBy('timestamp', descending: true);
+
+      // Apply pagination if lastDocument is provided
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+
+      // Apply limit
+      query = query.limit(limit);
+
+      // Execute query
+      QuerySnapshot postSnapshot = await query.get();
+
+      // Check if we got any results
+      if (postSnapshot.docs.isEmpty) {
+        return [];
+      }
+
+      // Convert to PostModel objects
+      List<PostModel> posts = postSnapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['postId'] = doc.id;
+        return PostModel.fromMap(data);
+      }).toList();
+
+      // Filter out excluded posts if needed
+      if (excludePostIds != null && excludePostIds.isNotEmpty) {
+        posts = posts.where((post) => !excludePostIds.contains(post.postId)).toList();
+      }
+
+      return posts;
+    } catch (e) {
+      print("Error in getRandomPosts: $e");
+      rethrow;
+    }
+  }
+
+  // Helper method to get the document for pagination
+  Future<DocumentSnapshot?> getLastDocument(String postId) async {
+    try {
+      return await _firestore.collection('posts').doc(postId).get();
+    } catch (e) {
+      print("Error getting last document: $e");
+      return null;
     }
   }
 
@@ -146,7 +213,7 @@ class FirestoreService {
       // Return updated post
       return await getPost(post.postId);
     } catch (e) {
-      print('Error toggling post like: $e');
+      // print('Error toggling post like: $e');
       throw e;
     }
   }
@@ -191,7 +258,7 @@ class FirestoreService {
 
       return PostModel.fromMap(data);
     } catch (e) {
-      print('Error fetching post: $e');
+      // print('Error fetching post: $e');
       return null;
     }
   }
@@ -292,12 +359,12 @@ class FirestoreService {
 
   Future<void> createDefaultUserProfile(String uid) async {
     try {
-      print("DEBUG: Starting default user profile creation for uid: $uid");
+      // print("DEBUG: Starting default user profile creation for uid: $uid");
 
       // Check if user already exists
       final docSnapshot = await _firestore.collection('users').doc(uid).get();
       if (docSnapshot.exists) {
-        print("DEBUG: User document already exists");
+        // print("DEBUG: User document already exists");
         return;
       }
 
@@ -307,7 +374,7 @@ class FirestoreService {
         throw Exception('No authenticated user found');
       }
 
-      print("DEBUG: Creating user document with email: ${user.email}");
+      // print("DEBUG: Creating user document with email: ${user.email}");
 
       // Create user data with explicit typing and null safety
       await _firestore.collection('users').doc(uid).set({
@@ -328,13 +395,13 @@ class FirestoreService {
       // Verify document creation
       final verifyDoc = await _firestore.collection('users').doc(uid).get();
       if (!verifyDoc.exists) {
-        print("DEBUG: Document creation verification failed");
+        // print("DEBUG: Document creation verification failed");
         throw Exception('Failed to verify user document creation');
       }
 
-      print("DEBUG: Default user profile created successfully");
+      // print("DEBUG: Default user profile created successfully");
     } catch (e) {
-      print("DEBUG: Error creating default user profile: $e");
+      // print("DEBUG: Error creating default user profile: $e");
       print("DEBUG: Error type: ${e.runtimeType}");
       rethrow;
     }

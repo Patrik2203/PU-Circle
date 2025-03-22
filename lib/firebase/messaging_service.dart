@@ -210,7 +210,7 @@ class MessagingService {
         // If the chat doesn't exist, create a new chat document
         await _firestore.collection('chats').doc(chatId).set({
           'participants': userIds,
-          'lastMessage': '',
+          'lastMessage': 'Say hello!',
           'lastMessageTimestamp': FieldValue.serverTimestamp(),
           'lastMessageSenderId': '',
         });

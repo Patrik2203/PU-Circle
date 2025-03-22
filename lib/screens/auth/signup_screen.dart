@@ -56,22 +56,15 @@ class _SignupScreenState extends State<SignupScreen> {
     });
 
     try {
-      print("DEBUG: Starting signup process");
       String? profileImageUrl;
 
       // Upload profile image if selected
       if (_image != null) {
-        print("DEBUG: Uploading profile image");
         profileImageUrl = await _cloudinaryService.uploadProfileImage(
           _image!,
           'profile_${DateTime.now().millisecondsSinceEpoch}',
         );
-        print("DEBUG: Profile image uploaded: $profileImageUrl");
       }
-
-      print(
-        "DEBUG: Creating user with Email: ${_emailController.text.trim()}, Username: ${_usernameController.text.trim()}, Gender: $_selectedGender",
-      );
 
       // Create user with email and password
       UserCredential userCredential = await _authService.signUp(
@@ -84,7 +77,6 @@ class _SignupScreenState extends State<SignupScreen> {
         profileImageUrl: profileImageUrl,
       );
 
-      print("DEBUG: User created with ID: ${userCredential.user!.uid}");
 
       // Give Firestore a moment to complete the write
       await Future.delayed(Duration(seconds: 2));
@@ -93,10 +85,8 @@ class _SignupScreenState extends State<SignupScreen> {
       bool userExists = await _authService.userExistsInFirestore(
         userCredential.user!.uid,
       );
-      print("DEBUG: User exists in Firestore: $userExists");
 
       if (!userExists) {
-        print("DEBUG: Failed to create user profile");
         throw Exception("Failed to create user profile. Please try again.");
       }
 
@@ -109,7 +99,6 @@ class _SignupScreenState extends State<SignupScreen> {
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
     } catch (e) {
-      print("DEBUG: Signup error: $e");
 
       // Try to get more detailed error
       try {

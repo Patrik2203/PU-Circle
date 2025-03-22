@@ -13,11 +13,11 @@ class CloudinaryService {
   // Upload profile image
   Future<String> uploadProfileImage(File imageFile, String fileName) async {
     return _uploadWithRetry(() async {
-      print("DEBUG: Starting profile image upload for $fileName");
+      // print("DEBUG: Starting profile image upload for $fileName");
 
       // Compress image
       File compressedFile = await _compressImage(imageFile);
-      print("DEBUG: Image compressed successfully");
+      // print("DEBUG: Image compressed successfully");
 
       // Upload to Cloudinary
       CloudinaryResponse response = await cloudinary.uploadFile(
@@ -28,7 +28,7 @@ class CloudinaryService {
         ),
       );
 
-      print("DEBUG: Profile image uploaded successfully. URL: ${response.secureUrl}");
+      // print("DEBUG: Profile image uploaded successfully. URL: ${response.secureUrl}");
       return response.secureUrl;
     });
   }
@@ -36,13 +36,13 @@ class CloudinaryService {
   // Upload post image
   Future<String> uploadPostImage(File imageFile, {String? fileName}) async {
     return _uploadWithRetry(() async {
-      print("DEBUG: Starting post image upload");
+      // print("DEBUG: Starting post image upload");
       String postId = fileName ?? _uuid.v4();
-      print("DEBUG: Using post ID: $postId");
+      // print("DEBUG: Using post ID: $postId");
 
       // Compress image
       File compressedFile = await _compressImage(imageFile);
-      print("DEBUG: Image compressed successfully. Size: ${compressedFile.lengthSync()}");
+      // print("DEBUG: Image compressed successfully. Size: ${compressedFile.lengthSync()}");
 
       // Upload to Cloudinary
       CloudinaryResponse response = await cloudinary.uploadFile(
@@ -54,7 +54,7 @@ class CloudinaryService {
       );
 
       String downloadUrl = response.secureUrl;
-      print("DEBUG: Post image uploaded successfully. URL: $downloadUrl");
+      // print("DEBUG: Post image uploaded successfully. URL: $downloadUrl");
 
       return downloadUrl;
     });
@@ -63,12 +63,12 @@ class CloudinaryService {
   // Upload post video
   Future<String> uploadPostVideo(File videoFile, {String? fileName}) async {
     return _uploadWithRetry(() async {
-      print("DEBUG: Starting post video upload");
+      // print("DEBUG: Starting post video upload");
       String postId = fileName ?? _uuid.v4();
-      print("DEBUG: Using post ID: $postId");
+      // print("DEBUG: Using post ID: $postId");
 
       // Compress video
-      print("DEBUG: Starting video compression");
+      // print("DEBUG: Starting video compression");
       File? compressedFile;
 
       try {
@@ -80,14 +80,14 @@ class CloudinaryService {
         );
 
         if (compressedInfo?.file == null) {
-          print("WARNING: Video compression failed, using original file");
+          // print("WARNING: Video compression failed, using original file");
           compressedFile = videoFile;
         } else {
           compressedFile = compressedInfo!.file!;
-          print("DEBUG: Video compressed successfully. Original: ${videoFile.lengthSync()}, Compressed: ${compressedFile.lengthSync()}");
+          // print("DEBUG: Video compressed successfully. Original: ${videoFile.lengthSync()}, Compressed: ${compressedFile.lengthSync()}");
         }
       } catch (e) {
-        print("WARNING: Error during video compression: $e");
+        // print("WARNING: Error during video compression: $e");
         compressedFile = videoFile; // Fallback to original
       }
 
@@ -104,7 +104,7 @@ class CloudinaryService {
 
       // Generate and upload thumbnail
       try {
-        print("DEBUG: Generating video thumbnail");
+        // print("DEBUG: Generating video thumbnail");
         File? thumbnailFile = await _generateVideoThumbnail(compressedFile);
         if (thumbnailFile != null) {
           await cloudinary.uploadFile(
@@ -114,16 +114,16 @@ class CloudinaryService {
               resourceType: CloudinaryResourceType.Image,
             ),
           );
-          print("DEBUG: Thumbnail uploaded successfully");
+          // print("DEBUG: Thumbnail uploaded successfully");
         } else {
-          print("WARNING: Failed to generate thumbnail");
+          // print("WARNING: Failed to generate thumbnail");
         }
       } catch (e) {
-        print("WARNING: Error generating thumbnail: $e");
+        // print("WARNING: Error generating thumbnail: $e");
         // Continue even if thumbnail fails
       }
 
-      print("DEBUG: Video uploaded successfully. URL: $downloadUrl");
+      // print("DEBUG: Video uploaded successfully. URL: $downloadUrl");
       return downloadUrl;
     });
   }
@@ -132,11 +132,11 @@ class CloudinaryService {
   Future<String> uploadChatImage(File imageFile) async {
     return _uploadWithRetry(() async {
       String messageId = _uuid.v4();
-      print("DEBUG: Starting chat image upload with ID: $messageId");
+      // print("DEBUG: Starting chat image upload with ID: $messageId");
 
       // Compress image
       File compressedFile = await _compressImage(imageFile);
-      print("DEBUG: Chat image compressed successfully");
+      // print("DEBUG: Chat image compressed successfully");
 
       // Upload to Cloudinary
       CloudinaryResponse response = await cloudinary.uploadFile(
@@ -148,7 +148,7 @@ class CloudinaryService {
       );
 
       String downloadUrl = response.secureUrl;
-      print("DEBUG: Chat image uploaded successfully. URL: $downloadUrl");
+      // print("DEBUG: Chat image uploaded successfully. URL: $downloadUrl");
 
       return downloadUrl;
     });
@@ -163,15 +163,15 @@ class CloudinaryService {
         return await uploadFunction();
       } catch (e) {
         attempts++;
-        print("ERROR: Upload attempt $attempts failed: $e");
+        // print("ERROR: Upload attempt $attempts failed: $e");
 
         // Wait before retrying - exponential backoff
         int delayMs = 1000 * (2 << (attempts - 1)); // 2s, 4s, 8s...
-        print("INFO: Retrying in ${delayMs}ms...");
+        // print("INFO: Retrying in ${delayMs}ms...");
         await Future.delayed(Duration(milliseconds: delayMs));
 
         if (attempts >= maxRetries) {
-          print("ERROR: Max retry attempts reached");
+          // print("ERROR: Max retry attempts reached");
           rethrow;
         }
       }
@@ -198,7 +198,7 @@ class CloudinaryService {
         quality = 70;
       }
 
-      print("DEBUG: Compressing image with quality: $quality");
+      // print("DEBUG: Compressing image with quality: $quality");
 
       var result = await FlutterImageCompress.compressAndGetFile(
         file.absolute.path,
@@ -209,22 +209,22 @@ class CloudinaryService {
       );
 
       if (result == null) {
-        print("WARNING: Image compression failed, using original file");
+        // print("WARNING: Image compression failed, using original file");
         return file;
       }
 
       File compressedFile = File(result.path);
-      print("DEBUG: Image compressed successfully. Original: ${file.lengthSync()}, Compressed: ${compressedFile.lengthSync()} bytes");
+      // print("DEBUG: Image compressed successfully. Original: ${file.lengthSync()}, Compressed: ${compressedFile.lengthSync()} bytes");
 
       // If compression didn't help much, use original
       if (compressedFile.lengthSync() > file.lengthSync() * 0.9) {
-        print("DEBUG: Compression ineffective, using original file");
+        // print("DEBUG: Compression ineffective, using original file");
         return file;
       }
 
       return compressedFile;
     } catch (e) {
-      print("ERROR: Image compression failed: $e");
+      // print("ERROR: Image compression failed: $e");
       return file; // Return original on error
     }
   }
@@ -237,10 +237,10 @@ class CloudinaryService {
         quality: 50,
         position: -1, // Auto-select good frame
       );
-      print("DEBUG: Thumbnail generated successfully");
+      // print("DEBUG: Thumbnail generated successfully");
       return thumbnail;
     } catch (e) {
-      print("ERROR: Thumbnail generation failed: $e");
+      // print("ERROR: Thumbnail generation failed: $e");
       return null;
     }
   }
@@ -248,7 +248,7 @@ class CloudinaryService {
   // Delete media from Cloudinary
   Future<void> deleteMedia(String mediaUrl) async {
     if (mediaUrl.isEmpty) {
-      print("WARNING: Empty URL provided for deletion");
+      // print("WARNING: Empty URL provided for deletion");
       return;
     }
 

@@ -1,10 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import '../../firebase/messaging_service.dart';
+import 'package:pu_circle/widgets/common_widgets.dart';
+import '../../controllers/chat_controller.dart';
 import '../../models/chat_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/colors.dart';
@@ -25,163 +24,16 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController _messageController = TextEditingController();
-  final MessagingService _messagingService = MessagingService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final ScrollController _scrollController = ScrollController();
-  final ImagePicker _imagePicker = ImagePicker();
-
-  List<MessageModel> _messages = [];
-  bool _isLoading = true;
-  bool _isSending = false;
-  File? _imageFile;
-  // bool _showEmojiPicker = false;
+  late ChatController _controller;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
-    _markMessagesAsRead();
-  }
-
-  Future<void> _loadMessages() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      _messages = await _messagingService.getChatMessages(widget.chatId);
-      setState(() {
-        _isLoading = false;
-      });
-
-      // Scroll to the bottom after messages load
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            0,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
-    } catch (e) {
-      print('Error loading messages: $e');
-      setState(() {
-        _isLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to load messages'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
-  }
-
-  Future<void> _markMessagesAsRead() async {
-    try {
-      final userId = _auth.currentUser!.uid;
-      await _messagingService.markMessagesAsRead(widget.chatId, userId);
-    } catch (e) {
-      print('Error marking messages as read: $e');
-    }
-  }
-
-  Future<void> _sendMessage() async {
-    final text = _messageController.text.trim();
-
-    if (text.isEmpty && _imageFile == null) return;
-
-    setState(() {
-      _isSending = true;
-    });
-
-    try {
-      final userId = _auth.currentUser!.uid;
-
-      if (_imageFile != null) {
-        // Upload image first
-        final fileName = DateTime.now().millisecondsSinceEpoch.toString();
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('chat_images')
-            .child('$fileName.jpg');
-
-        final uploadTask = storageRef.putFile(_imageFile!);
-        final snapshot = await uploadTask.whenComplete(() {});
-        final imageUrl = await snapshot.ref.getDownloadURL();
-
-        // Send message with image
-        await _messagingService.sendMessage(
-          chatId: widget.chatId,
-          senderId: userId,
-          content: text.isNotEmpty ? text : 'Sent an image',
-          mediaUrl: imageUrl,
-          isImage: true,
-        );
-
-        setState(() {
-          _imageFile = null;
-        });
-      } else {
-        // Send text message
-        await _messagingService.sendMessage(
-          chatId: widget.chatId,
-          senderId: userId,
-          content: text,
-        );
-      }
-
-      _messageController.clear();
-      _loadMessages(); // Reload messages after sending
-    } catch (e) {
-      print('Error sending message: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to send message'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    } finally {
-      setState(() {
-        _isSending = false;
-      });
-    }
-  }
-
-  Future<void> _pickImage() async {
-    try {
-      final pickedFile = await _imagePicker.pickImage(source: ImageSource.gallery);
-
-      if (pickedFile != null) {
-        setState(() {
-          _imageFile = File(pickedFile.path);
-        });
-      }
-    } catch (e) {
-      print('Error picking image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to pick image'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
-  }
-
-  void _sendPredefinedMessage() async {
-    try {
-      final userId = _auth.currentUser!.uid;
-      await _messagingService.sendPredefinedMessage(
-        chatId: widget.chatId,
-        senderId: userId,
-      );
-      _loadMessages();
-    } catch (e) {
-      print('Error sending predefined message: $e');
-    }
+    _controller = ChatController(
+      chatId: widget.chatId,
+      otherUser: widget.otherUser,
+    );
+    _controller.init();
   }
 
   void _navigateToProfile() {
@@ -194,6 +46,12 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -241,9 +99,7 @@ class _ChatScreenState extends State<ChatScreen> {
           IconButton(
             icon: const Icon(Icons.videocam_outlined),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Video calling coming soon!')),
-              );
+              showCustomSnackBar(context, message: "Video calling coming soon!", isError: false);
             },
           ),
           IconButton(
@@ -254,29 +110,47 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Image preview if selected
-          if (_imageFile != null)
-            _buildImagePreview(),
+      body: StreamBuilder<ChatControllerState>(
+        stream: _controller.stateStream,
+        initialData: ChatControllerState(
+          messages: [],
+          isLoading: true,
+          isSending: false,
+          imageFile: null,
+          isLoadingMore: false,
+          hasMoreMessages: true,
+        ),
+        builder: (context, snapshot) {
+          final state = snapshot.data!;
 
-          // Messages list
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _messages.isEmpty
-                ? _buildEmptyChat()
-                : _buildMessagesList(),
-          ),
+          return Column(
+            children: [
+              // Encryption banner
+              _buildEncryptionBanner(),
 
-          // Message input
-          _buildMessageInput(),
-        ],
+              // Image preview if selected
+              if (state.imageFile != null)
+                _buildImagePreview(state.imageFile!),
+
+              // Messages list
+              Expanded(
+                child: state.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : state.messages.isEmpty
+                    ? _buildEmptyChat()
+                    : _buildMessagesList(state),
+              ),
+
+              // Message input
+              _buildMessageInput(state.isSending),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildImagePreview() {
+  Widget _buildImagePreview(File imageFile) {
     return Container(
       height: 120,
       width: double.infinity,
@@ -284,16 +158,14 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Stack(
         children: [
           Center(
-            child: Image.file(_imageFile!, height: 120, fit: BoxFit.cover),
+            child: Image.file(imageFile, height: 120, fit: BoxFit.cover),
           ),
           Positioned(
             top: 8,
             right: 8,
             child: GestureDetector(
               onTap: () {
-                setState(() {
-                  _imageFile = null;
-                });
+                _controller.clearSelectedImage();
               },
               child: Container(
                 padding: const EdgeInsets.all(4),
@@ -315,70 +187,75 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildEmptyChat() {
-  return Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(
-          Icons.chat_bubble_outline,
-          size: 80,
-          color: AppColors.textLight,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'No messages yet',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.chat_bubble_outline,
+            size: 80,
+            color: AppColors.textLight,
           ),
-        ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Text(
-            'Start the conversation with a quick message!',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
+          const SizedBox(height: 16),
+          Text(
+            'No messages yet',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
-            textAlign: TextAlign.center,
           ),
-        ),
-        const SizedBox(height: 24),
-        ElevatedButton(
-          onPressed: () {
-            _messageController.text = "Wanna meet at PU Circle or on a tea post?";
-            _sendPredefinedMessage();
-          },
-          child: const Text('Send a greeting'),
-        ),
-      ],
-    ),
-  );
-}
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Start the conversation with a quick message!',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () {
+              _controller.sendPredefinedMessage();
+            },
+            child: const Text('Send a greeting'),
+          ),
+        ],
+      ),
+    );
+  }
 
-  Widget _buildMessagesList() {
-    final currentUserId = _auth.currentUser!.uid;
-
+  Widget _buildMessagesList(ChatControllerState state) {
     return ListView.builder(
-      controller: _scrollController,
+      controller: _controller.scrollController,
       reverse: true, // Display messages from bottom to top
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: _messages.length,
+      itemCount: state.messages.length + (state.hasMoreMessages && state.isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
-        final message = _messages[index];
-        final isMe = message.senderId == currentUserId;
+        // Show loading indicator at the top
+        if (state.hasMoreMessages && state.isLoadingMore && index == state.messages.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(8.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        final message = state.messages[index];
+        final isMe = _controller.isCurrentUser(message.senderId);
 
         // Determine if we should show timestamp
         bool showTimestamp = true;
-        if (index < _messages.length - 1) {
-          final prevMessage = _messages[index + 1];
+        if (index < state.messages.length - 1) {
+          final prevMessage = state.messages[index + 1];
           final timeDiff = message.timestamp.difference(prevMessage.timestamp).inMinutes;
           showTimestamp = timeDiff > 10; // Show timestamp if more than 10 minutes between messages
         }
-
         return Column(
           children: [
-            if (showTimestamp)
-              _buildTimestamp(message.timestamp),
+            if (showTimestamp) _buildTimestamp(message.timestamp),
             _buildMessageBubble(message, isMe),
           ],
         );
@@ -413,7 +290,7 @@ class _ChatScreenState extends State<ChatScreen> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withAlpha(5),
               blurRadius: 5,
               offset: const Offset(0, 2),
             ),
@@ -445,7 +322,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   },
                 ),
               ),
-
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -475,7 +351,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageInput() {
+  Widget _buildMessageInput(bool isSending) {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -484,7 +360,7 @@ class _ChatScreenState extends State<ChatScreen> {
           BoxShadow(
             offset: const Offset(0, -1),
             blurRadius: 5,
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withAlpha(10),
           ),
         ],
       ),
@@ -496,7 +372,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           Expanded(
             child: TextField(
-              controller: _messageController,
+              controller: _controller.messageController,
               decoration: const InputDecoration(
                 hintText: 'Type a message...',
                 border: InputBorder.none,
@@ -505,18 +381,42 @@ class _ChatScreenState extends State<ChatScreen> {
               textCapitalization: TextCapitalization.sentences,
               maxLines: null,
               keyboardType: TextInputType.multiline,
-              onSubmitted: (_) => _sendMessage(),
+              onSubmitted: (_) => _controller.sendMessage(),
             ),
           ),
           IconButton(
-            icon: _isSending
+            icon: isSending
                 ? const SizedBox(
               width: 24,
               height: 24,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
                 : const Icon(Icons.send, color: AppColors.primary),
-            onPressed: _isSending ? null : _sendMessage,
+            onPressed: isSending ? null : () => _controller.sendMessage(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEncryptionBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      color: Colors.grey[200],
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.lock, size: 16, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'Messages are end-to-end encrypted. No one outside of this chat can read or listen to them.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
         ],
       ),
@@ -539,20 +439,15 @@ class _ChatScreenState extends State<ChatScreen> {
               title: const Text('Gallery'),
               onTap: () {
                 Navigator.pop(context);
-                _pickImage();
+                _controller.pickImage(source: ImageSource.gallery);
               },
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt, color: AppColors.primary),
               title: const Text('Camera'),
-              onTap: () async {
+              onTap: () {
                 Navigator.pop(context);
-                final pickedFile = await _imagePicker.pickImage(source: ImageSource.camera);
-                if (pickedFile != null) {
-                  setState(() {
-                    _imageFile = File(pickedFile.path);
-                  });
-                }
+                _controller.pickImage(source: ImageSource.camera);
               },
             ),
             ListTile(
@@ -560,9 +455,7 @@ class _ChatScreenState extends State<ChatScreen> {
               title: const Text('Location'),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Location sharing coming soon!')),
-                );
+                showCustomSnackBar(context, message: "Location sharing coming soon!", isError: false);
               },
             ),
           ],
@@ -603,9 +496,7 @@ class _ChatScreenState extends State<ChatScreen> {
               title: const Text('Block User', style: TextStyle(color: AppColors.error)),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Block feature coming soon!')),
-                );
+                showCustomSnackBar(context, message: "Block feature coming soon!", isError: true);
               },
             ),
           ],
@@ -629,10 +520,9 @@ class _ChatScreenState extends State<ChatScreen> {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await _messagingService.deleteChat(widget.chatId);
+                await _controller.deleteChat();
                 Navigator.pop(context); // Return to chat list
               } catch (e) {
-                print('Error deleting chat: $e');
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Failed to delete conversation'),

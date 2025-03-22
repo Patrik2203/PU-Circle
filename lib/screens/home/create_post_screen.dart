@@ -155,30 +155,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         throw Exception('User not authenticated');
       }
 
-      print("DEBUG: Starting post creation for user ${currentUser.uid}");
-
       // Create unique filename with timestamp and user ID
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final String fileName = '${currentUser.uid}_$timestamp';
 
-      print("DEBUG: Generated filename: $fileName");
-
       String mediaUrl;
       if (_isVideo) {
-        print("DEBUG: Uploading video file");
         mediaUrl = await _cloudinaryService.uploadPostVideo(
           _mediaFile!,
           fileName: fileName,
         );
       } else {
-        print("DEBUG: Uploading image file");
         mediaUrl = await _cloudinaryService.uploadPostImage(
           _mediaFile!,
           fileName: fileName,
         );
       }
-
-      print("DEBUG: Media uploaded successfully. URL: $mediaUrl");
 
       // Create post in Firestore
       final postId = await _firestoreService.createPost(
@@ -187,8 +179,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         mediaUrl: mediaUrl,
         isVideo: _isVideo,
       );
-
-      print("DEBUG: Post created in Firestore with ID: $postId");
 
       // Call callback to refresh posts
       widget.onPostCreated();
@@ -199,10 +189,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       AppHelpers.showSnackBar(context, 'Post created successfully!');
       Navigator.pop(context);
     } catch (e, stackTrace) {
-      print("ERROR: Post creation failed");
-      print("Error details: $e");
-      print("Stack trace: $stackTrace");
-
+      AppHelpers.showSnackBar(context, 'Post creating Error!');
       if (mounted) {
         String errorMessage = 'Failed to create post. ';
         if (e.toString().contains('storage/object-not-found')) {

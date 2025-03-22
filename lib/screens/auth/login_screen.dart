@@ -31,7 +31,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      print("DEBUG: Starting login process");
       await _authService.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -39,13 +38,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      print("DEBUG: Login successful, navigating to home screen");
       // Navigate to home screen
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } catch (e) {
-      print("DEBUG: Login error: $e");
       if (!mounted) return;
       AppHelpers.showSnackBar(context, e.toString());
     } finally {

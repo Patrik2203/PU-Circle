@@ -22,7 +22,6 @@ class ProfileCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print("Building ProfileCardWidget for ${user.username}");
     return GestureDetector(
       onTap: onProfileTap,
       child: Container(
@@ -113,24 +112,6 @@ class ProfileCardWidget extends StatelessWidget {
                             ],
                           ),
                         ),
-                        // if (user.major.isNotEmpty || user.year.isNotEmpty)
-                        //   Text(
-                        //     [
-                        //       if (user.major.isNotEmpty) user.major,
-                        //       if (user.year.isNotEmpty) 'Class of ${user.year}',
-                        //     ].join(' · '),
-                        //     style: const TextStyle(
-                        //       color: Colors.white,
-                        //       fontSize: 14,
-                        //       shadows: [
-                        //         Shadow(
-                        //           offset: Offset(0, 1),
-                        //           blurRadius: 3,
-                        //           color: Colors.black45,
-                        //         ),
-                        //       ],
-                        //     ),
-                        //   ),
                       ],
                     ),
                   ),

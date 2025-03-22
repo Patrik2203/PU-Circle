@@ -115,11 +115,11 @@ class _MatchListScreenState extends State<MatchListScreen> {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId != null) {
-        // Find and delete the like document
+        // Find and delete the like document - THIS IS THE FIX
         QuerySnapshot likeQuery = await FirebaseFirestore.instance
             .collection('likes')
-            .where('userId', isEqualTo: otherUserId)
-            .where('likedUserId', isEqualTo: userId)
+            .where('likerId', isEqualTo: otherUserId)  // Changed from 'userId'
+            .where('likedId', isEqualTo: userId)  // Changed from 'likedUserId'
             .get();
 
         if (likeQuery.docs.isNotEmpty) {
@@ -134,7 +134,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Request declined')),
+            const SnackBar(content: Text('Request declined'),),
           );
         }
       }
@@ -147,7 +147,7 @@ class _MatchListScreenState extends State<MatchListScreen> {
     }
   }
 
-
+  
 
   final MatchService _matchService = MatchService();
   final FirebaseAuth _auth = FirebaseAuth.instance;

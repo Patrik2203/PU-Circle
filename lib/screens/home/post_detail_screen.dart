@@ -366,7 +366,10 @@ class _PostDetailScreenState extends State<PostDetailScreen>
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Post'), elevation: 0),
+        appBar: AppBar(
+          backgroundColor: AppColors.cardBackground,
+            title: const Text('Post'), elevation: 0
+        ),
         body: Center(
           child: LoadingAnimationWidget.staggeredDotsWave(
             color: AppColors.primary,
@@ -378,7 +381,10 @@ class _PostDetailScreenState extends State<PostDetailScreen>
 
     if (_postUser == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Post'), elevation: 0),
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+            title: const Text('Post'), elevation: 0
+        ),
         body: const Center(child: Text('Error loading post data')),
       );
     }
@@ -389,6 +395,7 @@ class _PostDetailScreenState extends State<PostDetailScreen>
               ? Colors.black
               : Colors.grey[100],
       appBar: AppBar(
+        backgroundColor: AppColors.background,
         title: Text(
           _postUser!.username,
           style: const TextStyle(fontWeight: FontWeight.bold),
@@ -426,7 +433,7 @@ class _PostDetailScreenState extends State<PostDetailScreen>
                     },
                     child: CircleAvatar(
                       radius: 22,
-                      backgroundColor: AppColors.primary.withOpacity(0.2),
+                      backgroundColor: AppColors.primary.withAlpha(20),
                       backgroundImage:
                           _postUser!.profileImageUrl != null &&
                                   _postUser!.profileImageUrl!.isNotEmpty

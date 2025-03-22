@@ -403,4 +403,16 @@ class AppTheme {
     ),
     // Other theme properties similar to light theme but with admin colors
   );
+
+
+  // Update colors based on theme mode
+  // static void updateColorsForTheme(BuildContext context) {
+  //   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  //
+  //   // These values would normally be in AppColors class but are dynamically updated here
+  //   AppColors.cardBackground = isDarkMode ? const Color(0xFF121212) : Colors.white;
+  //   AppColors.textPrimary = isDarkMode ? Colors.white : Colors.black87;
+  //   AppColors.textSecondary = isDarkMode ? Colors.white70 : Colors.black54;
+  //   AppColors.textLight = isDarkMode ? Colors.white38 : Colors.black38;
+  // }
 }

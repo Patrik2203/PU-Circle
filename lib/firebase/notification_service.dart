@@ -2,14 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../models/notification_model.dart';
-import '../models/user_model.dart';
 
 class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
-  // Initialize notifications and request permissions
+  // Initialize notifications and request permissions// Update the initNotifications method to call setupNotificationHandling
   Future<void> initNotifications() async {
     try {
       NotificationSettings settings = await _messaging.requestPermission(
@@ -33,6 +32,9 @@ class NotificationService {
             });
           }
         });
+
+        // Set up messaging handlers
+        // await setupNotificationHandling();
       }
     } catch (e) {
       print('Error initializing notifications: $e');
@@ -388,5 +390,103 @@ class NotificationService {
     }
   }
 
+//   // Setup for handling foreground and background messages
+//   Future<void> setupNotificationHandling() async {
+//     // Set up foreground notification presentation options
+//     await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+//       alert: true,
+//       badge: true,
+//       sound: true,
+//     );
+//
+//     // Initialize the local notifications plugin
+//     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+//     FlutterLocalNotificationsPlugin();
+//
+//     const AndroidInitializationSettings initializationSettingsAndroid =
+//     AndroidInitializationSettings('@mipmap/ic_launcher');
+//
+//     const DarwinInitializationSettings initializationSettingsIOS =
+//     DarwinInitializationSettings();
+//
+//     const InitializationSettings initializationSettings = InitializationSettings(
+//       android: initializationSettingsAndroid,
+//       iOS: initializationSettingsIOS,
+//     );
+//
+//     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+//
+//     // Handle foreground messages
+//     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+//       print('Got a message whilst in the foreground!');
+//       print('Message data: ${message.data}');
+//
+//       if (message.notification != null) {
+//         print('Message also contained a notification: ${message.notification}');
+//
+//         // Show a local notification
+//         _showLocalNotification(
+//           flutterLocalNotificationsPlugin,
+//           message.notification?.title ?? 'New Notification',
+//           message.notification?.body ?? '',
+//           message.data,
+//         );
+//       }
+//     });
+//
+//     // Get initial message if app was opened from a terminated state
+//     RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+//     if (initialMessage != null) {
+//       _handleMessage(initialMessage);
+//     }
+//
+//     // Handle background/terminated messages
+//     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessage);
+//   }
+//
+// // Handle notification data when user taps on notification
+//   void _handleMessage(RemoteMessage message) {
+//     // Process the message data based on the notification type
+//     if (message.data.containsKey('type')) {
+//       String type = message.data['type'];
+//       String? notificationId = message.data['notificationId'];
+//
+//       if (notificationId != null) {
+//         // Mark the notification as read since user tapped on it
+//         markNotificationAsRead(notificationId);
+//       }
+//
+//       // Navigation is handled by the NotificationHelper class
+//       // The app automatically navigates to the correct screen based on the message data
+//     }
+//   }
+//
+// // Show a local notification when the app is in foreground
+//   Future<void> _showLocalNotification(
+//       FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin,
+//       String title,
+//       String body,
+//       Map<String, dynamic> payload,
+//       ) async {
+//     const AndroidNotificationDetails androidPlatformChannelSpecifics =
+//     AndroidNotificationDetails(
+//       'your_channel_id',
+//       'Your Channel Name',
+//       channelDescription: 'Your channel description',
+//       importance: Importance.max,
+//       priority: Priority.high,
+//     );
+//
+//     const NotificationDetails platformChannelSpecifics =
+//     NotificationDetails(android: androidPlatformChannelSpecifics);
+//
+//     await flutterLocalNotificationsPlugin.show(
+//       0,
+//       title,
+//       body,
+//       platformChannelSpecifics,
+//       payload: payload.toString(),
+//     );
+//   }
 
 }

@@ -148,7 +148,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                     fit: BoxFit.cover,
                   )
                       : Container(
-                    color: AppColors.primary.withOpacity(0.7),
+                    color: AppColors.primary.withAlpha(70),
                     child: Center(
                       child: Text(
                         user.username.isNotEmpty
@@ -179,7 +179,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.chat_bubble),
+                icon: const Icon(Icons.chat_bubble,  color: Colors.white),
                 onPressed: _startChat,
                 tooltip: 'Start Chat',
               ),
@@ -200,7 +200,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                       borderRadius: BorderRadius.circular(12.0),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withAlpha(5),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),

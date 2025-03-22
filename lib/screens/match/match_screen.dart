@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:pu_circle/controllers/match_controller.dart';
 import 'package:pu_circle/screens/match/your_match_screen.dart';
 import 'package:pu_circle/screens/profile/profile_screen.dart';
-import '../../firebase/match_service.dart';
 import '../../models/user_model.dart';
 import '../../utils/colors.dart';
 import '../../widgets/match_animation_widget.dart';
@@ -18,20 +18,13 @@ class MatchScreen extends StatefulWidget {
 
 class _MatchScreenState extends State<MatchScreen>
     with SingleTickerProviderStateMixin {
-  final MatchService _matchService = MatchService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  List<UserModel> _potentialMatches = [];
-  bool _isLoading = true;
-  bool _showMatchAnimation = false;
-  UserModel? _matchedUser;
 
   late AnimationController _animationController;
+  late MatchController _matchController;
 
   @override
   void initState() {
     super.initState();
-    _loadPotentialMatches();
 
     // Setup animation controller for match animation
     _animationController = AnimationController(
@@ -43,103 +36,23 @@ class _MatchScreenState extends State<MatchScreen>
       if (status == AnimationStatus.completed) {
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
-            setState(() {
-              _showMatchAnimation = false;
-            });
-            _navigateToMatchDetail(_matchedUser!);
+            _matchController.setShowMatchAnimation(false);
+            _navigateToMatchDetail(_matchController.matchedUser!);
           }
         });
       }
     });
+
+// Initialize controller using Provider
+    _matchController = Provider.of<MatchController>(context, listen: false);
+// Schedule init() to run after the current build cycle completes
+    Future.microtask(() => _matchController.init());
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadPotentialMatches() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final userId = _auth.currentUser?.uid;
-      if (userId != null) {
-        final matches = await _matchService.getPotentialMatches(userId);
-
-        // Sort the matches by some criteria if needed
-        // matches.sort((a, b) => ...);
-
-        setState(() {
-          _potentialMatches = matches;
-          _isLoading = false;
-          print(
-            "Loaded ${_potentialMatches.length} potential matches",
-          ); // Add this line
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder:
-              (context) => AlertDialog(
-                title: const Text('Error'),
-                content: Text('Failed to load matches: ${e.toString()}'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-        );
-      }
-    }
-  }
-
-  Future<void> _handleSwipe(UserModel user, bool isLiked) async {
-    // First call your match checking logic but wait to remove the card
-    if (isLiked) {
-      try {
-        final userId = _auth.currentUser?.uid;
-        if (userId != null) {
-          final bool isMatch = await _matchService.likeUser(userId, user.uid);
-
-          if (isMatch && mounted) {
-            setState(() {
-              _showMatchAnimation = true;
-              _matchedUser = user;
-            });
-            _animationController.reset();
-            _animationController.forward();
-          }
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
-        }
-      }
-    }
-
-    // Now remove the user from the list - this creates a smoother transition
-    if (mounted) {
-      setState(() {
-        _potentialMatches.remove(user);
-      });
-
-      // If no more potential matches, reload
-      if (_potentialMatches.isEmpty) {
-        _loadPotentialMatches();
-      }
-    }
   }
 
   void _navigateToMatchDetail(UserModel matchedUser) {
@@ -153,74 +66,104 @@ class _MatchScreenState extends State<MatchScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          'Find Friends',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _loadPotentialMatches,
-          ),
-          IconButton(
-            icon: const Icon(Icons.people, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const MatchListScreen(),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.primary.withOpacity(0.8),
-              AppColors.background,
-              AppColors.background,
+    return Consumer<MatchController>(
+      builder: (context, controller, child) {
+        return Scaffold(
+          extendBodyBehindAppBar: true,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: const Text(
+              'Find Friends',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                onPressed: () => controller.loadPotentialMatches(refresh: true),
+              ),
+              IconButton(
+                icon: const Icon(Icons.people, color: Colors.white),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MatchListScreen(),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
-        ),
-        child:
-            _isLoading
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.primary.withAlpha(80),
+                  AppColors.background,
+                  AppColors.background,
+                ],
+              ),
+            ),
+            child: controller.isLoading && controller.potentialMatches.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _potentialMatches.isEmpty
-                        ? _buildNoMatchesView()
-                        : _buildMatchCards(),
+              fit: StackFit.expand,
+              children: [
+                controller.potentialMatches.isEmpty
+                    ? _buildNoMatchesView(controller)
+                    : _buildMatchCards(controller),
 
-                    // Match animation overlay
-                    if (_showMatchAnimation && _matchedUser != null)
-                      MatchAnimationWidget(
-                        matchedUser: _matchedUser!,
-                        onStartChatting: () {
-                          setState(() {
-                            _showMatchAnimation = false;
-                          });
-                          _navigateToMatchDetail(_matchedUser!);
-                        },
-                        animationController: _animationController,
-                      ),
-                  ],
-                ),
-      ),
+                // Swipe limit indicator
+                // Positioned(
+                //   top: kToolbarHeight + 8,
+                //   right: 20,
+                //   child: Container(
+                //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                //     decoration: BoxDecoration(
+                //       color: Colors.white,
+                //       borderRadius: BorderRadius.circular(15),
+                //       boxShadow: [
+                //         BoxShadow(
+                //           color: Colors.black.withOpacity(0.1),
+                //           blurRadius: 4,
+                //           offset: const Offset(0, 2),
+                //         ),
+                //       ],
+                //     ),
+                //     child: Text(
+                //       '${controller.remainingSwipes}/100 swipes left',
+                //       style: TextStyle(
+                //         fontWeight: FontWeight.bold,
+                //         color: controller.remainingSwipes < 5
+                //             ? Colors.red
+                //             : AppColors.textPrimary,
+                //       ),
+                //     ),
+                //   ),
+                // ),
+
+                // Match animation overlay
+                if (controller.showMatchAnimation && controller.matchedUser != null)
+                  MatchAnimationWidget(
+                    matchedUser: controller.matchedUser!,
+                    onStartChatting: () {
+                      controller.setShowMatchAnimation(false);
+                      _navigateToMatchDetail(controller.matchedUser!);
+                    },
+                    animationController: _animationController,
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildNoMatchesView() {
+  Widget _buildNoMatchesView(MatchController controller) {
     return Center(
       child: Container(
         margin: const EdgeInsets.all(32),
@@ -230,7 +173,7 @@ class _MatchScreenState extends State<MatchScreen>
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withAlpha(10),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -251,15 +194,17 @@ class _MatchScreenState extends State<MatchScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'Check back later for new Profiles',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+              controller.hasMoreMatches
+                  ? 'Loading more profiles...'
+                  : 'Check back later for new Profiles',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppColors.textSecondary
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: _loadPotentialMatches,
+              onPressed: () => controller.loadPotentialMatches(refresh: true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(
@@ -281,7 +226,7 @@ class _MatchScreenState extends State<MatchScreen>
     );
   }
 
-  Widget _buildMatchCards() {
+  Widget _buildMatchCards(MatchController controller) {
     return Column(
       children: [
         const SizedBox(height: kToolbarHeight + 34),
@@ -291,14 +236,14 @@ class _MatchScreenState extends State<MatchScreen>
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.primary.withOpacity(0.8), AppColors.primary],
+              colors: [AppColors.primary.withAlpha(80), AppColors.primary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.4),
+                color: AppColors.primary.withAlpha(40),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -311,7 +256,9 @@ class _MatchScreenState extends State<MatchScreen>
               const Icon(Icons.swipe, color: Colors.white, size: 22),
               const SizedBox(width: 10),
               Text(
-                'Swipe cards to connect',
+                controller.remainingSwipes > 0
+                    ? 'Swipe cards to connect'
+                    : 'No more swipes today',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -324,8 +271,8 @@ class _MatchScreenState extends State<MatchScreen>
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: _potentialMatches.isNotEmpty
-                ? _buildSwipeableCard(_potentialMatches[0])
+            child: controller.potentialMatches.isNotEmpty
+                ? _buildSwipeableCard(controller, controller.potentialMatches[0])
                 : Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -333,7 +280,7 @@ class _MatchScreenState extends State<MatchScreen>
                   Icon(
                     Icons.mood_bad,
                     size: 70,
-                    color: AppColors.primary.withOpacity(0.5),
+                    color: AppColors.primary.withAlpha(50),
                   ),
                   const SizedBox(height: 20),
                   Text(
@@ -356,24 +303,38 @@ class _MatchScreenState extends State<MatchScreen>
                         vertical: 12,
                       ),
                     ),
-                    onPressed: _loadPotentialMatches,
+                    onPressed: () => controller.loadPotentialMatches(refresh: true),
                   ),
                 ],
               ),
             ),
           ),
         ),
+        // Loading indicator for pagination
+        if (controller.isLoading && controller.potentialMatches.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.all(10),
+            child: const CircularProgressIndicator(),
+          ),
       ],
     );
   }
 
-  Widget _buildSwipeableCard(UserModel user) {
+  Widget _buildSwipeableCard(MatchController controller, UserModel user) {
+    // Disable swiping if no more swipes left today
+    final bool canSwipe = controller.remainingSwipes > 0;
+
     return Dismissible(
       key: Key(user.uid),
-      direction: DismissDirection.horizontal,
+      direction: canSwipe ? DismissDirection.horizontal : DismissDirection.none,
       onDismissed: (direction) {
         bool isLiked = direction == DismissDirection.endToStart;
-        _handleSwipe(user, isLiked);
+        controller.handleSwipe(user, isLiked);
+        // Trigger animation if needed
+        if (controller.showMatchAnimation) {
+          _animationController.reset();
+          _animationController.forward();
+        }
       },
       background: Container(
         alignment: Alignment.centerLeft,
@@ -397,7 +358,7 @@ class _MatchScreenState extends State<MatchScreen>
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [AppColors.primary.withOpacity(0.8), AppColors.primary],
+            colors: [AppColors.primary.withAlpha(80), AppColors.primary],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -414,7 +375,7 @@ class _MatchScreenState extends State<MatchScreen>
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withAlpha(15),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -424,19 +385,65 @@ class _MatchScreenState extends State<MatchScreen>
           children: [
             // Profile card takes up most of the space
             Expanded(
-              child: ProfileCardWidget(
-                user: user,
-                showActions: false,
-                onLike: () {},
-                onDislike: () {},
-                onProfileTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ProfileScreen(userId: user.uid),
+              child: Stack(
+                children: [
+                  ProfileCardWidget(
+                    user: user,
+                    showActions: false,
+                    onLike: () {},
+                    onDislike: () {},
+                    onProfileTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProfileScreen(userId: user.uid),
+                        ),
+                      );
+                    },
+                  ),
+                  // Overlay to prevent interaction if daily limit reached
+                  if (!canSwipe)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(50),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.hourglass_empty,
+                                  size: 40,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Daily Limit Reached',
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'You\'ve used all swipes for today.\nCome back tomorrow!',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  );
-                },
+                ],
               ),
             ),
             // Action buttons
@@ -446,21 +453,25 @@ class _MatchScreenState extends State<MatchScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _buildActionButton(
-                    onPressed: () => _handleSwipe(user, false),
+                    onPressed: canSwipe
+                        ? () => controller.handleSwipe(user, false)
+                        : null,
                     icon: Icons.close,
-                    backgroundColor: Colors.white,
-                    iconColor: Colors.red,
+                    backgroundColor: canSwipe ? Colors.white : Colors.grey.shade300,
+                    iconColor: canSwipe ? Colors.red : Colors.grey,
                     size: 65,
-                    shadow: true,
+                    shadow: canSwipe,
                   ),
                   const SizedBox(width: 40),
                   _buildActionButton(
-                    onPressed: () => _handleSwipe(user, true),
+                    onPressed: canSwipe
+                        ? () => controller.handleSwipe(user, true)
+                        : null,
                     icon: Icons.favorite,
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: canSwipe ? AppColors.primary : Colors.grey.shade300,
                     iconColor: Colors.white,
                     size: 65,
-                    shadow: true,
+                    shadow: canSwipe,
                   ),
                 ],
               ),
@@ -472,7 +483,7 @@ class _MatchScreenState extends State<MatchScreen>
   }
 
   Widget _buildActionButton({
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
     required IconData icon,
     required Color backgroundColor,
     required Color iconColor,

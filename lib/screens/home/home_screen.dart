@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:pu_circle/screens/admin/user_management.dart';
-import 'package:pu_circle/screens/auth/login_screen.dart'; // Import the login screen directly
+import 'package:pu_circle/screens/auth/login_screen.dart';
 import 'package:pu_circle/screens/home/search_screen.dart';
+
+import '../../controllers/home_controller.dart';
 import '../../firebase/auth_service.dart';
-import '../../firebase/firestore_service.dart';
 import '../../models/post_model.dart';
-import '../../models/user_model.dart';
 import '../../utils/colors.dart';
+import '../../widgets/custom_appBar.dart';
 import '../../widgets/post_widget.dart';
 import '../../widgets/common_widgets.dart';
 import 'create_post_screen.dart';
@@ -16,7 +17,6 @@ import '../match/match_screen.dart';
 import '../messaging/chat_list_screen.dart';
 import '../profile/profile_screen.dart';
 import '../notifications/notification_screen.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,70 +25,37 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  Map<String, UserModel> _postOwners = {};
+class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+  // Keep widget state alive when switching tabs
+  @override
+  bool get wantKeepAlive => true;
+
   final AuthService _authService = AuthService();
-  final FirestoreService _firestoreService = FirestoreService();
   int _currentIndex = 0;
-  UserModel? _currentUser;
-  bool _isLoading = true;
-  List<PostModel> _posts = [];
-  bool _isLoggingOut = false;
+  late HomeController _controller;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _setupController();
   }
 
-  Future<void> _loadUserData() async {
-    setState(() {
-      _isLoading = true;
-    });
+  void _setupController() {
+    // Create controller
+    _controller = HomeController();
 
-    try {
-      final currentUserId = _authService.currentUser?.uid;
-      if (currentUserId == null) {
-        print("DEBUG: No current user found");
-        if (mounted) {
-          _navigateToLogin();
-        }
-        return;
-      }
-
-      print("DEBUG: Attempting to get user data for $currentUserId");
-      final userData = await _authService.getUserData(currentUserId);
-
-      if (userData == null) {
-        print("DEBUG: No user data found for $currentUserId");
-        final retryData = await _authService.getUserData(currentUserId);
-        if (retryData == null) {
-          print("DEBUG: Failed to create user profile");
-          throw Exception('Failed to create user profile');
-        }
-        _currentUser = retryData;
-      } else {
-        _currentUser = userData;
-      }
-
-      // Load posts
-      await _loadPosts();
-    } catch (e) {
-      print("DEBUG: Full error in _loadUserData: $e");
-      if (mounted) {
-        showCustomSnackBar(
-            context,
-            message: 'Error loading data: ${e.toString()}',
-            isError: true
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+    // Check if user is authenticated
+    if (!_controller.checkAuthStatus()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateToLogin();
+      });
+      return;
     }
+
+    // Load data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.loadUserData(context);
+    });
   }
 
   void _navigateToLogin() {
@@ -98,81 +65,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _loadPosts() async {
-    if (_currentUser == null) return;
-    try {
-      // Get posts from following users
-      final posts = await _firestoreService.getHomeFeedPosts(_currentUser!.uid);
-
-      // Create a map of post owners
-      Map<String, UserModel> postOwners = {};
-      for (var post in posts) {
-        if (!postOwners.containsKey(post.userId)) {
-          final userData = await _firestoreService.getUserData(post.userId);
-          if (userData != null) {
-            postOwners[post.userId] = userData;
-          }
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _posts = posts;
-          _postOwners = postOwners;
-        });
-      }
-    } catch (e) {
-      print("Error loading posts: $e");
-      if (mounted) {
-        showCustomSnackBar(
-            context,
-            message: 'Error loading posts: ${e.toString()}',
-            isError: true
-        );
-      }
-    }
-  }
-
-  Future<void> _refreshData() async {
-    await _loadPosts();
-  }
-
   void _navigateToCreatePost() {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => CreatePostScreen(
-          onPostCreated: _refreshData,
+          onPostCreated: () => _controller.refreshData(),
         ),
       ),
     );
-  }
-
-  Future<void> _handleLogout() async {
-    // Prevent double-tapping the logout button
-    if (_isLoggingOut) return;
-
-    setState(() {
-      _isLoggingOut = true;
-    });
-
-    try {
-      await _authService.logout();
-      if (!mounted) return;
-      _navigateToLogin();
-    } catch (e) {
-      if (!mounted) return;
-      showCustomSnackBar(
-          context,
-          message: 'Error logging out: ${e.toString()}',
-          isError: true
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoggingOut = false;
-        });
-      }
-    }
   }
 
   Widget _buildEmptyPostsView() {
@@ -185,158 +85,267 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const LoadingSpinner(text: 'Loading posts...');
-    }
+    return Consumer<HomeController>(
+      builder: (context, controller, child) {
+        if (controller.isLoading) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          );
+        }
 
-    if (_posts.isEmpty) {
-      return _buildEmptyPostsView();
-    }
+        // If there are no posts from following users
+        if (controller.posts.isEmpty) {
+          if (controller.isEmptyFollowingFeed) {
+            // Load random posts if the feed is empty
+            // controller.loadRandomPostsForEmptyFeed();
+            return _buildEmptyPostsView();
+          } else {
+            return _buildEmptyPostsView();
+          }
+        }
 
-    return RefreshIndicator(
-      onRefresh: _refreshData,
-      color: AppColors.primary,
-      backgroundColor: AppColors.cardBackground,
-      child: ListView.builder(
-        itemCount: _posts.length,
-        itemBuilder: (context, index) {
-          final post = _posts[index];
-          final postOwner = _postOwners[post.userId] ?? _currentUser!;
-          return PostWidget(
-            post: post,
-            postOwner: postOwner,
-            onRefresh: _refreshData,
+        return RefreshIndicator(
+          onRefresh: () => controller.refreshData(),
+          color: AppColors.primary,
+          backgroundColor: AppColors.cardBackground,
+          child: Stack(
+            children: [
+              ListView.builder(
+                controller: controller.scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: controller.posts.length + 1, // +1 for loading indicator or message
+                itemBuilder: (context, index) {
+                  if (index < controller.posts.length) {
+                    final post = controller.posts[index];
+                    final postOwner = controller.postOwners[post.userId] ?? controller.currentUser!;
+
+                    // Use a more efficient post widget that doesn't trigger full refreshes
+                    return PostWidget(
+                      key: ValueKey(post.postId), // Key for optimized rebuilds
+                      post: post,
+                      postOwner: postOwner,
+                      onRefresh: () => controller.updatePost(post), // Just update this post
+                    );
+                  } else {
+                    // Footer widget
+                    if (controller.isLoadingMore) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                            strokeWidth: 2.0,
+                          ),
+                        ),
+                      );
+                    } else if (controller.isShowingRandomPosts) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Center(
+                          child: Text(
+                            "Showing posts from around PU Circle",
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    } else if (!controller.hasMorePosts) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Center(
+                          child: Text(
+                            "You're all caught up!",
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox(height: 50);
+                  }
+                },
+              ),
+
+              // Transition message overlay
+              if (controller.showTransitionMessage)
+                Positioned(
+                  bottom: 20,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(90),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(20),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        controller.transitionMessage,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // For AutomaticKeepAliveClientMixin
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+    );
+
+    // Provide the controller to the widget tree
+    return ChangeNotifierProvider.value(
+      value: _controller,
+      child: Consumer<HomeController>(
+        builder: (context, controller, child) {
+          if (controller.currentUser == null) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                ),
+              ),
+            );
+          }
+
+          final List<Widget> _screens = [
+            _buildHomeScreen(),
+            const MatchScreen(),
+            const SizedBox(), // Placeholder for FAB
+            const ChatListScreen(),
+            ProfileScreen(userId: controller.currentUser!.uid),
+          ];
+
+          return Scaffold(
+            appBar: _currentIndex == 0 ? _buildAppBar() : null,
+            body: _screens[_currentIndex] == const SizedBox()
+                ? _screens[0] // Show home screen if FAB placeholder is selected
+                : _screens[_currentIndex],
+            bottomNavigationBar: BottomNavigationBar(
+              currentIndex: _currentIndex == 2 ? 0 : _currentIndex,
+              onTap: (index) {
+                // Handle center button (index 2) separately
+                if (index == 2) {
+                  // Navigate to search screen instead
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SearchScreen(),
+                    ),
+                  );
+                } else {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                }
+              },
+              type: BottomNavigationBarType.fixed,
+              selectedItemColor: AppColors.primary,
+              unselectedItemColor: Colors.grey,
+              backgroundColor: Colors.black,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined),
+                  activeIcon: Icon(Icons.home),
+                  label: 'Home',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.favorite_outline),
+                  activeIcon: Icon(Icons.favorite),
+                  label: 'Match',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.search),
+                  activeIcon: Icon(Icons.search),
+                  label: 'Search', // Changed from 'Post'
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.chat_bubble_outline),
+                  activeIcon: Icon(Icons.chat_bubble),
+                  label: 'Chat',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person_outline),
+                  activeIcon: Icon(Icons.person),
+                  label: 'Profile',
+                ),
+              ],
+            ),
           );
         },
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-      ),
-    );
-
-    // Add null check for _currentUser
-    if (_currentUser == null) {
-      return const Scaffold(
-        body: LoadingSpinner(text: 'Loading user data...'),
-      );
-    }
-
-    final List<Widget> _screens = [
-      _buildHomeScreen(),
-      const MatchScreen(),
-      const SizedBox(), // Placeholder for FAB
-      const ChatListScreen(),
-      ProfileScreen(userId: _currentUser!.uid),
-    ];
-
-    return Scaffold(
-      appBar: _currentIndex == 0 ? _buildAppBar() : null,
-      body: _screens[_currentIndex] == const SizedBox()
-          ? _screens[0] // Show home screen if FAB placeholder is selected
-          : _screens[_currentIndex],
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToCreatePost,
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex == 2 ? 0 : _currentIndex,
-        onTap: (index) {
-          // Handle center button (index 2) separately
-          if (index == 2) {
-            _navigateToCreatePost();
-          } else {
-            setState(() {
-              _currentIndex = index;
-            });
-          }
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.black,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_outline),
-            activeIcon: Icon(Icons.favorite),
-            label: 'Match',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle_outline),
-            activeIcon: Icon(Icons.add_circle),
-            label: 'Post',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            activeIcon: Icon(Icons.chat_bubble),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-      ),
-    );
-  }
-
   PreferredSizeWidget _buildAppBar() {
-    return CustomAppBar(
-      title: 'PU Circle',
-      showBackButton: false,
-      backgroundColor: Colors.black,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search, color: AppColors.primary),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const SearchScreen(),
+    return PreferredSize(
+      preferredSize: Size.fromHeight(kToolbarHeight),
+      child: Consumer<HomeController>(
+        builder: (context, controller, child) {
+          return CustomAppBar(
+            title: 'PU Circle',
+            showBackButton: false,
+            backgroundColor: Colors.black,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add, color: AppColors.primary),
+                onPressed: _navigateToCreatePost,
               ),
-            );
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NotificationScreen(),
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationScreen(),
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
-        IconButton(
-          icon: _isLoggingOut
-              ? SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-            ),
-          )
-              : const Icon(Icons.logout, color: AppColors.primary),
-          onPressed: _isLoggingOut ? null : _handleLogout,
-        ),
-      ],
+              IconButton(
+                icon: controller.isLoggingOut
+                    ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  ),
+                )
+                    : const Icon(Icons.logout, color: AppColors.primary),
+                onPressed: controller.isLoggingOut ? null : () => controller.logout(context).then((_) => _navigateToLogin()),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 

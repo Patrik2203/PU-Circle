@@ -72,7 +72,6 @@ class UserModel {
         createdAt: createdAt,
       );
     } catch (e) {
-      print("Error creating UserModel from map: $e");
       // Return a default user model in case of error
       return UserModel(
         uid: map['uid'] ?? '',

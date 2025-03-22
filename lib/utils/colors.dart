@@ -6,6 +6,11 @@ class AppColors {
   static const Color primaryLight = Color(0xFF71B2FF);
   static const Color primaryDark = Color(0xFF3A6CB0);
 
+  // static const Color primary = Color(0xFF3897F0); // Main brand color
+  // static const Color primaryLight = Color(0xFFFF2D55);
+  // static const Color primaryDark = Color(0xFF3A6CB0);
+
+
   // Accent colors for highlights and call-to-action elements
   static const Color accent = Color(0xFFFFA500); // Orange accent
   static const Color accentLight = Color(0xFFFFCA7A);
@@ -16,10 +21,20 @@ class AppColors {
   static const Color cardBackground = Color(0xFF121212);
   static const Color textPrimary = Color(0xFF000000);
   static const Color textSecondary = Color(0xFF9E9E9E);
+
+  // static const Color background = Color(0xFF000000);
+  // static const Color cardBackground = Colors.white;
+  // static const Color textPrimary = Colors.black87;
+  // static const Color textSecondary = Colors.black54;
+
+
   // Text colors
   // static const Color textPrimary = Color(0xFF212121);
   // static const Color textSecondary = Color(0xFF757575);
+
   static const Color textLight = Color(0xFFBDBDBD);
+  // static const Color textLight = Colors.black38;
+
   static const Color textOnPrimary = Colors.white;
   static const Color textOnAccent = Colors.white;
 

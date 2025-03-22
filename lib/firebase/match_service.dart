@@ -10,18 +10,27 @@ class MatchService {
   final NotificationService _notificationService = NotificationService();
 
   // Get potential matches for a user
-  Future<List<UserModel>> getPotentialMatches(String userId) async {
+
+  Future<List<UserModel>> getPotentialMatches(
+      String userId, {
+        DocumentSnapshot? lastDocument,
+        int limit = 10,
+      }) async {
     try {
       // Get current user data to check gender preference
       DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
       UserModel currentUser = UserModel.fromMap(userDoc.data() as Map<String, dynamic>);
 
-      // Get users with opposite gender or based on preferences
-      // This is a simple implementation, you might want to add more complex matching logic
-      QuerySnapshot usersSnapshot = await _firestore
-          .collection('users')
-          .where('gender', isNotEqualTo: currentUser.gender)
+      // Get rejected users that are still within the 5-day period
+      QuerySnapshot rejectedSnapshot = await _firestore
+          .collection('rejections')
+          .where('rejectorId', isEqualTo: userId)
+          .where('expiresAt', isGreaterThan: Timestamp.fromDate(DateTime.now()))
           .get();
+
+      List<String> rejectedUserIds = rejectedSnapshot.docs
+          .map((doc) => (doc.data() as Map<String, dynamic>)['rejectedId'] as String)
+          .toList();
 
       // Get users the current user has already liked or matched with
       QuerySnapshot likedSnapshot = await _firestore
@@ -52,18 +61,42 @@ class MatchService {
         matchedUserIds.add((doc.data() as Map<String, dynamic>)['userId1'] as String);
       }
 
-      // Filter out users that current user has already liked or matched with
-      List<UserModel> potentialMatches = usersSnapshot.docs
-          .map((doc) {
+      // Combine all IDs to exclude
+      List<String> excludedUserIds = [
+        userId,
+        ...likedUserIds,
+        ...matchedUserIds,
+        ...rejectedUserIds,
+      ];
+
+      // Base query
+      Query usersQuery = _firestore
+          .collection('users')
+          .where('gender', isNotEqualTo: currentUser.gender)
+          .orderBy('gender')
+          .orderBy('createdAt', descending: true)
+          .limit(limit);
+
+      // Apply pagination if last document provided
+      if (lastDocument != null) {
+        usersQuery = usersQuery.startAfterDocument(lastDocument);
+      }
+
+      // Execute query
+      QuerySnapshot usersSnapshot = await usersQuery.get();
+
+      // Filter out excluded users
+      List<UserModel> potentialMatches = [];
+
+      for (var doc in usersSnapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['uid'] = doc.id;
-        return UserModel.fromMap(data);
-      })
-          .where((user) =>
-      user.uid != userId &&
-          !likedUserIds.contains(user.uid) &&
-          !matchedUserIds.contains(user.uid))
-          .toList();
+
+        // Add to results only if not in excluded list
+        if (!excludedUserIds.contains(doc.id)) {
+          potentialMatches.add(UserModel.fromMap(data));
+        }
+      }
 
       return potentialMatches;
     } catch (e) {
@@ -112,13 +145,13 @@ class MatchService {
       });
 
       // Create a chat room for the matched users
-      DocumentReference chatRef = await _firestore.collection('chats').add({
-        'participants': [userId1, userId2],
-        'lastMessage': 'You are now matched! Say hello!',
-        'lastMessageTimestamp': FieldValue.serverTimestamp(),
-        'lastMessageSenderId': 'system',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      // DocumentReference chatRef = await _firestore.collection('chats').add({
+      //   'participants': [userId1, userId2],
+      //   'lastMessage': 'You are now matched! Say hello!',
+      //   'lastMessageTimestamp': FieldValue.serverTimestamp(),
+      //   'lastMessageSenderId': 'system',
+      //   'createdAt': FieldValue.serverTimestamp(),
+      // });
 
       // Send notifications to both users
       await _notificationService.sendMatchNotification(
@@ -214,7 +247,7 @@ class MatchService {
 
   // Add this method to get users who have liked the current user
   Future<List<String>> getPendingMatchRequests(String userId) async {
-    print('nnnnnkhvjbkvvvvv bvvjbvhjbvjkvbkj');
+    // print('nnnnnkhvjbkvvvvv bvvjbvhjbvjkvbkj');
     try {
       // Get all users who have liked the current user
       QuerySnapshot likedBySnapshot = await _firestore
@@ -222,9 +255,9 @@ class MatchService {
           .where('likedId', isEqualTo: userId)
           .get();
 
-      // Extract userIds who have liked this user
+      // Extract userIds who have liked this user - THIS IS THE FIX
       List<String> likedByUserIds = likedBySnapshot.docs
-          .map((doc) => (doc.data() as Map<String, dynamic>)['userId'] as String)
+          .map((doc) => (doc.data() as Map<String, dynamic>)['likerId'] as String)
           .toList();
 
       // Filter out users who are already matched
@@ -243,11 +276,64 @@ class MatchService {
         }
       }
 
-      print('nnnnnkhvjbkvvvvv bvvjbvhjbvjkvbkj');
+      // print('nnnnnkhvjbkvvvvv bvvjbvhjbvjkvbkj');
 
       return pendingUserIds;
     } catch (e) {
       // print('nnnnnkhvjbkvvvvv bvvjbvhjbvjkvbkj');
+      rethrow;
+    }
+  }
+
+  // Add these functions to your MatchService class
+
+// For tracking rejected profiles
+  Future<void> rejectUser(String rejectorId, String rejectedId) async {
+    try {
+      await _firestore.collection('rejections').add({
+        'rejectorId': rejectorId,
+        'rejectedId': rejectedId,
+        'rejectedAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(
+          DateTime.now().add(const Duration(days: 5)),
+        ),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+// For tracking daily swipes
+  Future<int> getRemainingDailySwipes(String userId) async {
+    try {
+      // Get the start of the current day
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day);
+
+      // Query swipes for today
+      QuerySnapshot swipesSnapshot = await _firestore
+          .collection('swipes')
+          .where('userId', isEqualTo: userId)
+          .where('swipedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+          .get();
+
+      // Calculate remaining swipes (100 max per day)
+      return 100 - swipesSnapshot.docs.length;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+// Record a swipe (left or right)
+  Future<void> recordSwipe(String userId, String swipedUserId, bool isLike) async {
+    try {
+      await _firestore.collection('swipes').add({
+        'userId': userId,
+        'swipedUserId': swipedUserId,
+        'isLike': isLike,
+        'swipedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
       rethrow;
     }
   }

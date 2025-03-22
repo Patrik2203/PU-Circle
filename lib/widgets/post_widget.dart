@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pu_circle/widgets/video_player_widget.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../utils/colors.dart';
@@ -203,7 +204,8 @@ class _PostWidgetState extends State<PostWidget>
               ),
             ),
 
-          // Media content (image/video)
+// Inside the PostWidget class, modify the media content widget
+// Media content (image/video)
           GestureDetector(
             onTap: () => _navigateToPostDetail(context),
             onDoubleTap: _toggleLike,
@@ -213,42 +215,47 @@ class _PostWidgetState extends State<PostWidget>
               ),
               width: double.infinity,
               child: widget.post.mediaUrl != null
-                  ? Hero(
-                      tag: 'post_image_${widget.post.postId}',
-                      child: Image.network(
-                        widget.post.mediaUrl!,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppColors.primary),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Center(
-                            child: Icon(
-                              Icons.error_outline,
-                              color: AppColors.error,
-                              size: 50,
-                            ),
-                          );
-                        },
+                  ? widget.post.isVideo
+                  ? VideoPlayerWidget(
+                videoUrl: widget.post.mediaUrl!,
+                postId: widget.post.postId,
+              )
+                  : Hero(
+                tag: 'post_image_${widget.post.postId}',
+                child: Image.network(
+                  widget.post.mediaUrl!,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                            : null,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primary),
                       ),
-                    )
-                  : const Center(
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
                       child: Icon(
-                        Icons.image_not_supported,
-                        color: AppColors.textLight,
+                        Icons.error_outline,
+                        color: AppColors.error,
                         size: 50,
                       ),
-                    ),
+                    );
+                  },
+                ),
+              )
+                  : const Center(
+                child: Icon(
+                  Icons.image_not_supported,
+                  color: AppColors.textLight,
+                  size: 50,
+                ),
+              ),
             ),
           ),
 

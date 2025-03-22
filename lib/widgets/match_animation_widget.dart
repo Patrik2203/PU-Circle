@@ -46,8 +46,8 @@ class _MatchAnimationWidgetState extends State<MatchAnimationWidget> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                AppColors.primary.withOpacity(0.95),
-                AppColors.accent.withOpacity(0.95),
+                AppColors.primary.withAlpha(95),
+                AppColors.accent.withAlpha(95),
               ],
             ),
           ),
@@ -64,7 +64,7 @@ class _MatchAnimationWidgetState extends State<MatchAnimationWidget> {
                       fontWeight: FontWeight.bold,
                       shadows: [
                         Shadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withAlpha(30),
                           offset: const Offset(0, 2),
                           blurRadius: 4,
                         ),
@@ -78,10 +78,10 @@ class _MatchAnimationWidgetState extends State<MatchAnimationWidget> {
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withAlpha(20),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.match.withOpacity(0.5),
+                            color: AppColors.match.withAlpha(50),
                             blurRadius: 30,
                             spreadRadius: 10,
                           ),
